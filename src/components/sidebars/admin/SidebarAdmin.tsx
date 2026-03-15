@@ -9,15 +9,18 @@ import {
   FileTextOutlined,
   BarChartOutlined,
   ToolOutlined,
+  NodeIndexOutlined,
+  SafetyCertificateOutlined,
 } from '@ant-design/icons';
 import { useNavigate, useLocation } from '@tanstack/react-router';
 import { useMemo } from 'react';
 
 interface SidebarAdminProps {
   collapsed: boolean;
+  onMenuClick?: () => void;
 }
 
-export const SidebarAdmin = ({ collapsed }: SidebarAdminProps) => {
+export const SidebarAdmin = ({ collapsed, onMenuClick }: SidebarAdminProps) => {
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -27,6 +30,7 @@ export const SidebarAdmin = ({ collapsed }: SidebarAdminProps) => {
     // Van Tai System routes
     if (path.includes('/drivers')) return ['drivers'];
     if (path.includes('/vehicles')) return ['vehicles'];
+    if (path.includes('/routes')) return ['routes'];
     if (path.includes('/trips')) return ['trips'];
     if (path.includes('/tickets')) return ['tickets'];
     if (path.includes('/reports')) return ['reports'];
@@ -48,8 +52,9 @@ export const SidebarAdmin = ({ collapsed }: SidebarAdminProps) => {
       dashboard: '/admin/dashboard',
 
       // Van Tai System routes
-      drivers: '/admin/drivers',
       vehicles: '/admin/vehicles',
+      drivers: '/admin/drivers',
+      routes: '/admin/routes',
       trips: '/admin/trips',
       tickets: '/admin/tickets',
       reports: '/admin/reports',
@@ -62,6 +67,8 @@ export const SidebarAdmin = ({ collapsed }: SidebarAdminProps) => {
 
     if (routeMap[key]) {
       navigate({ to: routeMap[key] });
+      // Close mobile drawer if callback provided
+      onMenuClick?.();
     }
   };
 
@@ -76,20 +83,35 @@ export const SidebarAdmin = ({ collapsed }: SidebarAdminProps) => {
         type: 'divider' as const,
       },
       {
-        key: 'van-tai-group',
+        key: 'danh-muc-group',
         type: 'group' as const,
-        label: collapsed ? null : 'Quản lý Vận tải',
+        label: collapsed ? null : 'Danh mục',
         children: [
+          {
+            key: 'vehicles',
+            icon: <CarOutlined />,
+            label: 'Xe khách',
+          },
           {
             key: 'drivers',
             icon: <TeamOutlined />,
             label: 'Tài xế',
           },
           {
-            key: 'vehicles',
-            icon: <CarOutlined />,
-            label: 'Xe',
+            key: 'routes',
+            icon: <NodeIndexOutlined />,
+            label: 'Tuyến đường',
           },
+        ],
+      },
+      {
+        type: 'divider' as const,
+      },
+      {
+        key: 'van-tai-group',
+        type: 'group' as const,
+        label: collapsed ? null : 'Vận hành',
+        children: [
           {
             key: 'trips',
             icon: <EnvironmentOutlined />,
@@ -98,7 +120,7 @@ export const SidebarAdmin = ({ collapsed }: SidebarAdminProps) => {
           {
             key: 'tickets',
             icon: <FileTextOutlined />,
-            label: 'Đặt vé',
+            label: 'Vé',
           },
         ],
       },
@@ -113,12 +135,12 @@ export const SidebarAdmin = ({ collapsed }: SidebarAdminProps) => {
           {
             key: 'reports',
             icon: <BarChartOutlined />,
-            label: 'Báo cáo',
+            label: 'Báo cáo thống kê',
           },
           {
             key: 'maintenance',
-            icon: <ToolOutlined />,
-            label: 'Bảo trì',
+            icon: <SafetyCertificateOutlined />,
+            label: 'Bảo dưỡng & Đăng kiểm',
           },
         ],
       },
@@ -134,11 +156,6 @@ export const SidebarAdmin = ({ collapsed }: SidebarAdminProps) => {
             key: 'users',
             icon: <UserOutlined />,
             label: 'Khách hàng',
-          },
-          {
-            key: 'settings',
-            icon: <SettingOutlined />,
-            label: 'Cài đặt',
           },
         ],
       },

@@ -1,42 +1,576 @@
+/* ===================================
+   RESPONSIVE UTILITIES
+   =================================== */
+
+/* Prevent horizontal overflow */
+html,
+body {
+  overflow-x: hidden;
+  width: 100%;
+}
+
 #root {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
-  text-align: center;
+  width: 100%;
+  min-height: 100vh;
+  overflow-x: hidden;
 }
 
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: filter 300ms;
-}
-.logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
-}
-.logo.react:hover {
-  filter: drop-shadow(0 0 2em #61dafbaa);
+/* ===================================
+   RESPONSIVE TABLE WRAPPER
+   =================================== */
+.responsive-table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
-@keyframes logo-spin {
-  from {
-    transform: rotate(0deg);
+.responsive-table-wrapper .ant-table-wrapper {
+  min-width: 100%;
+}
+
+/* Mobile: ensure table scrolls horizontally */
+@media (max-width: 767px) {
+  .ant-table-wrapper {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
   }
-  to {
-    transform: rotate(360deg);
+
+  .ant-table {
+    min-width: max-content;
+  }
+
+  /* Reduce table cell padding on mobile */
+  .ant-table-thead > tr > th,
+  .ant-table-tbody > tr > td {
+    padding: 8px !important;
+    font-size: 13px !important;
+  }
+
+  /* Hide less important columns on mobile if needed */
+  .hide-on-mobile {
+    display: none !important;
   }
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  a:nth-of-type(2) .logo {
-    animation: logo-spin infinite 20s linear;
+/* ===================================
+   RESPONSIVE FORMS
+   =================================== */
+@media (max-width: 767px) {
+  /* Single column form on mobile */
+  .ant-form .ant-row {
+    flex-direction: column !important;
+  }
+
+  .ant-form .ant-col {
+    max-width: 100% !important;
+    flex: 0 0 100% !important;
+  }
+
+  /* Form item spacing */
+  .ant-form-item {
+    margin-bottom: 12px !important;
+  }
+
+  /* Input sizing */
+  .ant-input,
+  .ant-select,
+  .ant-picker,
+  .ant-input-number {
+    width: 100% !important;
+  }
+
+  /* Button group stacking */
+  .ant-space-horizontal {
+    flex-wrap: wrap;
+  }
+
+  .ant-space-horizontal > .ant-space-item {
+    margin-bottom: 8px;
   }
 }
 
-.card {
-  padding: 2em;
+/* ===================================
+   RESPONSIVE CARDS & STATISTICS
+   =================================== */
+@media (max-width: 767px) {
+  .ant-card {
+    margin-bottom: 12px;
+  }
+
+  .ant-card-body {
+    padding: 12px !important;
+  }
+
+  .ant-statistic-title {
+    font-size: 12px !important;
+  }
+
+  .ant-statistic-content {
+    font-size: 18px !important;
+  }
+
+  /* Row/Col gutter adjustment */
+  .ant-row {
+    margin-left: -4px !important;
+    margin-right: -4px !important;
+  }
+
+  .ant-col {
+    padding-left: 4px !important;
+    padding-right: 4px !important;
+  }
 }
 
-.read-the-docs {
-  color: #888;
+/* Tablet adjustments */
+@media (min-width: 768px) and (max-width: 1024px) {
+  .ant-card-body {
+    padding: 16px !important;
+  }
+}
+
+/* ===================================
+   RESPONSIVE MODALS & DRAWERS
+   =================================== */
+@media (max-width: 767px) {
+  .ant-modal {
+    max-width: calc(100vw - 32px) !important;
+    margin: 16px auto !important;
+  }
+
+  .ant-modal-body {
+    padding: 12px !important;
+    max-height: 60vh;
+    overflow-y: auto;
+  }
+
+  .ant-drawer-content-wrapper {
+    max-width: 100vw !important;
+  }
+
+  .ant-drawer-body {
+    padding: 12px !important;
+  }
+}
+
+/* ===================================
+   RESPONSIVE TYPOGRAPHY
+   =================================== */
+@media (max-width: 767px) {
+  .ant-typography h1,
+  h1.ant-typography {
+    font-size: 24px !important;
+  }
+
+  .ant-typography h2,
+  h2.ant-typography {
+    font-size: 20px !important;
+  }
+
+  .ant-typography h3,
+  h3.ant-typography {
+    font-size: 18px !important;
+  }
+
+  .ant-typography h4,
+  h4.ant-typography {
+    font-size: 16px !important;
+  }
+}
+
+/* ===================================
+   RESPONSIVE BUTTONS
+   =================================== */
+@media (max-width: 767px) {
+  /* Stack button groups vertically on mobile */
+  .ant-btn-group,
+  .button-group-responsive {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .ant-btn-group > .ant-btn,
+  .button-group-responsive > .ant-btn {
+    width: 100%;
+    margin-left: 0 !important;
+  }
+}
+
+/* ===================================
+   RESPONSIVE TABS
+   =================================== */
+@media (max-width: 767px) {
+  .ant-tabs-nav {
+    margin-bottom: 12px !important;
+  }
+
+  .ant-tabs-tab {
+    padding: 8px 12px !important;
+    font-size: 13px !important;
+  }
+
+  /* Scrollable tabs on mobile */
+  .ant-tabs-nav-list {
+    flex-wrap: nowrap;
+  }
+
+  .ant-tabs-nav-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+/* ===================================
+   RESPONSIVE DESCRIPTIONS
+   =================================== */
+@media (max-width: 767px) {
+  .ant-descriptions-item-label,
+  .ant-descriptions-item-content {
+    padding: 8px !important;
+    font-size: 13px !important;
+  }
+
+  .ant-descriptions-row {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .ant-descriptions-item {
+    display: flex;
+    flex-direction: column;
+    padding-bottom: 8px !important;
+  }
+}
+
+/* ===================================
+   RESPONSIVE TAGS
+   =================================== */
+@media (max-width: 767px) {
+  .ant-tag {
+    font-size: 11px !important;
+    padding: 0 4px !important;
+    line-height: 18px !important;
+  }
+}
+
+/* ===================================
+   UTILITY CLASSES
+   =================================== */
+/* Hide on specific breakpoints */
+@media (max-width: 767px) {
+  .hide-mobile {
+    display: none !important;
+  }
+}
+
+@media (min-width: 768px) and (max-width: 1024px) {
+  .hide-tablet {
+    display: none !important;
+  }
+}
+
+@media (min-width: 1025px) {
+  .hide-desktop {
+    display: none !important;
+  }
+}
+
+/* Show only on specific breakpoints */
+.show-mobile-only {
+  display: none !important;
+}
+
+@media (max-width: 767px) {
+  .show-mobile-only {
+    display: block !important;
+  }
+}
+
+/* Flex responsive */
+.flex-responsive {
+  display: flex;
+  gap: 16px;
+}
+
+@media (max-width: 767px) {
+  .flex-responsive {
+    flex-direction: column;
+    gap: 8px;
+  }
+}
+
+/* ===================================
+   PAGE SPECIFIC FIXES
+   =================================== */
+
+/* Page header responsive */
+.page-header {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+@media (max-width: 767px) {
+  .page-header {
+    flex-direction: column;
+  }
+
+  .page-header > * {
+    width: 100%;
+  }
+}
+
+/* Filter bar responsive */
+.filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+@media (max-width: 767px) {
+  .filter-bar {
+    flex-direction: column;
+  }
+
+  .filter-bar > * {
+    width: 100% !important;
+  }
+
+  .filter-bar .ant-input-search {
+    width: 100% !important;
+  }
+
+  .filter-bar .ant-select {
+    width: 100% !important;
+  }
+}
+
+/* ===================================
+   RESPONSIVE GRID (Row/Col) 
+   =================================== */
+@media (max-width: 767px) {
+  /* Force statistics columns to 2 per row on mobile */
+  .ant-col-6 {
+    flex: 0 0 50% !important;
+    max-width: 50% !important;
+  }
+
+  /* Form columns to full width on mobile */
+  .ant-col-8,
+  .ant-col-12,
+  .ant-col-16,
+  .ant-col-18 {
+    flex: 0 0 100% !important;
+    max-width: 100% !important;
+  }
+}
+
+@media (min-width: 768px) and (max-width: 1024px) {
+  /* Tablet: adjust span-6 to 2 columns */
+  .ant-col-6 {
+    flex: 0 0 50% !important;
+    max-width: 50% !important;
+  }
+
+  /* Tablet: span-8 stays same or adjusts */
+  .ant-col-8 {
+    flex: 0 0 50% !important;
+    max-width: 50% !important;
+  }
+}
+
+/* ===================================
+   RESPONSIVE SPACE COMPONENT
+   =================================== */
+@media (max-width: 767px) {
+  .ant-space {
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+  }
+
+  .ant-space-item {
+    margin-right: 0 !important;
+  }
+}
+
+/* ===================================
+   RESPONSIVE ALERTS
+   =================================== */
+@media (max-width: 767px) {
+  .ant-alert {
+    padding: 8px 12px !important;
+    font-size: 13px !important;
+  }
+
+  .ant-alert-message {
+    font-size: 13px !important;
+  }
+
+  .ant-alert-icon {
+    font-size: 14px !important;
+    margin-right: 8px !important;
+  }
+}
+
+/* ===================================
+   RESPONSIVE SEARCH INPUT
+   =================================== */
+@media (max-width: 767px) {
+  .ant-input-search,
+  .ant-input-affix-wrapper {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  /* Inline styles width override */
+  [style*='width: 280px'],
+  [style*='width: 200px'],
+  [style*='width: 160px'],
+  [style*='width: 140px'] {
+    width: 100% !important;
+  }
+}
+
+/* ===================================
+   RESPONSIVE PROGRESS BAR
+   =================================== */
+@media (max-width: 767px) {
+  .ant-progress-text {
+    font-size: 12px !important;
+  }
+
+  .ant-progress-line {
+    margin-bottom: 4px !important;
+  }
+}
+
+/* ===================================
+   RESPONSIVE DIVIDER
+   =================================== */
+@media (max-width: 767px) {
+  .ant-divider-horizontal.ant-divider-with-text {
+    font-size: 13px !important;
+    margin: 12px 0 !important;
+  }
+}
+
+/* ===================================
+   RESPONSIVE LIST
+   =================================== */
+@media (max-width: 767px) {
+  .ant-list-item {
+    padding: 8px 0 !important;
+  }
+
+  .ant-list-item-meta-title {
+    font-size: 14px !important;
+  }
+
+  .ant-list-item-meta-description {
+    font-size: 12px !important;
+  }
+}
+
+/* ===================================
+   RESPONSIVE TOOLTIP
+   =================================== */
+@media (max-width: 767px) {
+  .ant-tooltip {
+    max-width: calc(100vw - 32px) !important;
+  }
+
+  .ant-tooltip-inner {
+    font-size: 12px !important;
+    padding: 6px 8px !important;
+  }
+}
+
+/* ===================================
+   RESPONSIVE BADGE
+   =================================== */
+@media (max-width: 767px) {
+  .ant-badge-count {
+    font-size: 10px !important;
+    min-width: 16px !important;
+    height: 16px !important;
+    line-height: 16px !important;
+  }
+}
+
+/* ===================================
+   INLINE STYLE OVERRIDES FOR MOBILE
+   =================================== */
+@media (max-width: 767px) {
+  /* Override inline flex layouts */
+  div[style*='display: flex'][style*='justify-content: space-between'] {
+    flex-wrap: wrap !important;
+    gap: 12px !important;
+  }
+
+  /* Override fixed margins */
+  div[style*='margin: 24px'] {
+    margin: 12px !important;
+  }
+
+  div[style*='marginBottom: 24px'] {
+    margin-bottom: 12px !important;
+  }
+
+  div[style*='margin-bottom: 24px'] {
+    margin-bottom: 12px !important;
+  }
+}
+
+/* ===================================
+   DATEPICKER RESPONSIVE
+   =================================== */
+@media (max-width: 767px) {
+  .ant-picker {
+    width: 100% !important;
+  }
+
+  .ant-picker-dropdown {
+    left: 8px !important;
+    right: 8px !important;
+    width: calc(100vw - 16px) !important;
+  }
+
+  .ant-picker-panel-container {
+    width: 100% !important;
+  }
+
+  .ant-picker-panel {
+    width: 100% !important;
+  }
+}
+
+/* ===================================
+   DROPDOWN RESPONSIVE
+   =================================== */
+@media (max-width: 767px) {
+  .ant-dropdown {
+    max-width: calc(100vw - 32px) !important;
+  }
+
+  .ant-dropdown-menu {
+    max-height: 60vh !important;
+    overflow-y: auto !important;
+  }
+}
+
+/* ===================================
+   POPCONFIRM RESPONSIVE
+   =================================== */
+@media (max-width: 767px) {
+  .ant-popconfirm {
+    max-width: calc(100vw - 32px) !important;
+  }
+
+  .ant-popconfirm-message {
+    font-size: 13px !important;
+  }
 }

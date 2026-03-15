@@ -5,11 +5,11 @@
 import { createRoute, lazyRouteComponent } from '@tanstack/react-router';
 import { adminRoute } from '@routes/admin.routes';
 
-// Reports route
+// Reports route - using enhanced page with salary, revenue reports
 export const reportsRoute = createRoute({
   getParentRoute: () => adminRoute,
   path: '/reports',
-  component: lazyRouteComponent(() => import('@features/admin/pages/reports/Reports')),
+  component: lazyRouteComponent(() => import('@features/admin/pages/reports/ReportsEnhanced')),
 });
 
 // Export all report routes

@@ -5,11 +5,11 @@
 import { createRoute, lazyRouteComponent } from '@tanstack/react-router';
 import { adminRoute } from '@routes/admin.routes';
 
-// Driver list route
+// Driver list route - using enhanced page with salary tracking
 export const driverListRoute = createRoute({
   getParentRoute: () => adminRoute,
   path: '/drivers',
-  component: lazyRouteComponent(() => import('@features/admin/pages/drivers/DriverList')),
+  component: lazyRouteComponent(() => import('@features/admin/pages/drivers/DriverListEnhanced')),
 });
 
 // Driver detail route

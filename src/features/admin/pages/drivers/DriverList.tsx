@@ -319,8 +319,8 @@ const DriverList: React.FC = () => {
             rowKey="maTaiXe"
             onChange={handleTableChange}
             pagination={{
-              current: data?.pagination?.pageIndex || 1,
-              pageSize: data?.pagination?.pageSize || 20,
+              current: tableState.pageIndex,
+              pageSize: tableState.pageSize,
               total: data?.pagination?.totalRecords || 0,
               showSizeChanger: true,
               showTotal: (total, range) => (

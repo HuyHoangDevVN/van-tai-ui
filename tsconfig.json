@@ -25,7 +25,8 @@
       "@routes/*": ["routes/*"],
       "@base/*": ["base/*"],
       "@features/*": ["features/*"],
-      "@contexts/*": ["contexts/*"]
+      "@contexts/*": ["contexts/*"],
+      "@mocks/*": ["mocks/*"]
     },
     "composite": true,
     "rootDir": "src",

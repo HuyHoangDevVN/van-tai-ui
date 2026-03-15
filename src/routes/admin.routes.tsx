@@ -9,6 +9,8 @@ import { vehicleRoutes } from '@features/admin/routes/vehicles.route';
 import { tripRoutes } from '@features/admin/routes/trips.route';
 import { reportRoutes } from '@features/admin/routes/reports.route';
 import { ticketRoutes } from '@features/admin/routes/tickets.route';
+import { routeRoutes } from '@features/admin/routes/routes.route';
+import { maintenanceRoutes } from '@features/admin/routes/maintenance.route';
 import { createRoute } from '@tanstack/react-router';
 import { rootRoutes } from './routes';
 
@@ -29,6 +31,8 @@ const adminTree = adminRoute.addChildren([
   ...tripRoutes,
   ...reportRoutes,
   ...ticketRoutes,
+  ...routeRoutes,
+  ...maintenanceRoutes,
 ]);
 
 export { adminRoute, adminTree };

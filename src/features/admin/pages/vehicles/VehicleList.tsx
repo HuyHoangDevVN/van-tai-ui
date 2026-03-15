@@ -73,6 +73,7 @@ const VehicleList: React.FC = () => {
       title: 'Tên xe',
       dataIndex: 'tenXe',
       key: 'tenXe',
+      width: 200,
       render: (text) => text || '-',
     },
     {
@@ -104,14 +105,14 @@ const VehicleList: React.FC = () => {
       width: 130,
       render: (text) => <Tag color={getStatusColor(text)}>{text || '-'}</Tag>,
     },
-    {
-      title: 'Tổng KM',
-      dataIndex: 'tongKmVanHanh',
-      key: 'tongKmVanHanh',
-      width: 110,
-      align: 'right',
-      render: (text) => formatNumber(text),
-    },
+    // {
+    //   title: 'Tổng KM',
+    //   dataIndex: 'tongKmVanHanh',
+    //   key: 'tongKmVanHanh',
+    //   width: 110,
+    //   align: 'right',
+    //   render: (text) => formatNumber(text),
+    // },
     {
       title: 'Ngày đăng kiểm',
       dataIndex: 'ngayDangKiem',
@@ -247,8 +248,8 @@ const VehicleList: React.FC = () => {
           loading={isLoading}
           onChange={handleTableChange}
           pagination={{
-            current: data?.pagination?.pageIndex || 1,
-            pageSize: data?.pagination?.pageSize || 20,
+            current: tableState.pageIndex,
+            pageSize: tableState.pageSize,
             total: data?.pagination?.totalRecords || 0,
             showSizeChanger: true,
             showTotal: (total, range) => `${range[0]}-${range[1]} của ${total} bản ghi`,
