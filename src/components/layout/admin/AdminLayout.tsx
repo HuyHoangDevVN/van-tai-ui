@@ -3,6 +3,7 @@ import { Layout, Drawer, Button, Grid } from 'antd';
 import { MenuOutlined } from '@ant-design/icons';
 import HeaderAdmin from '@components/headers/admin/HeaderAdmin';
 import { SidebarAdmin } from '@components/sidebars/admin/SidebarAdmin';
+import { AdminGuard } from '@components/guards/ProtectedRoute';
 import { useState, useEffect } from 'react';
 
 const { Header, Sider, Content } = Layout;
@@ -33,7 +34,8 @@ const AdminLayout = () => {
   }, [isMobile]);
 
   return (
-    <Layout style={{ minHeight: '100vh' }}>
+    <AdminGuard>
+      <Layout style={{ minHeight: '100vh' }}>
       {/* Desktop/Tablet Sidebar */}
       {!isMobile && (
         <Sider
@@ -126,7 +128,8 @@ const AdminLayout = () => {
           <Outlet />
         </Content>
       </Layout>
-    </Layout>
+      </Layout>
+    </AdminGuard>
   );
 };
 

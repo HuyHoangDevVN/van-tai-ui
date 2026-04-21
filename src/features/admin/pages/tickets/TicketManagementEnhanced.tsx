@@ -39,7 +39,6 @@ import {
   ExclamationCircleOutlined,
   SearchOutlined,
   ReloadOutlined,
-  PlusOutlined,
   CreditCardOutlined,
   DollarOutlined,
   InfoCircleOutlined,
@@ -89,11 +88,8 @@ const TicketManagementEnhanced: React.FC = () => {
     queryFn: () => ticketService.search(searchParams),
   });
 
-  // Use mock data as fallback
   const tickets: TicketDetail[] = useMemo(() => {
-    return ticketsData?.data?.items?.length
-      ? (ticketsData.data.items as TicketDetail[])
-      : mockTickets;
+    return ticketsData?.data?.items?.length ? (ticketsData.data.items as TicketDetail[]) : [];
   }, [ticketsData]);
 
   // Statistics
@@ -337,9 +333,6 @@ const TicketManagementEnhanced: React.FC = () => {
           <Button icon={<ReloadOutlined />} onClick={() => refetch()}>
             Làm mới
           </Button>
-          <Button type="primary" icon={<PlusOutlined />} onClick={handleOpenBooking}>
-            Đặt vé mới
-          </Button>
         </Space>
       </div>
 
@@ -391,6 +384,12 @@ const TicketManagementEnhanced: React.FC = () => {
           </span>
         }
         type="info"
+        style={{ marginBottom: 16 }}
+      />
+      <Alert
+        message="Đặt vé trực tiếp từ màn admin đã được tắt trong production-lite vì flow hiện tại chưa có contract khách hàng đầy đủ ở backend."
+        type="warning"
+        showIcon
         style={{ marginBottom: 16 }}
       />
 

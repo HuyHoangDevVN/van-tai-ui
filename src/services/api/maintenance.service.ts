@@ -9,6 +9,9 @@ import {
   Maintenance,
   MaintenanceStatus,
   CreateMaintenanceDto,
+  MaintenanceAlert,
+  MaintenanceAlertQuery,
+  MaintenanceAlertScanResult,
 } from '@base/models/entities/maintenance';
 
 const MAINTENANCE_BASE_URL = '/bao-tri';
@@ -34,6 +37,18 @@ class MaintenanceService extends HttpService {
    */
   async getHistory(maXe: string): Promise<BaseResponse<Maintenance[]>> {
     return this.get<Maintenance[]>(`${MAINTENANCE_BASE_URL}/lich-su/${maXe}`);
+  }
+
+  async getAlerts(params?: MaintenanceAlertQuery): Promise<BaseResponse<MaintenanceAlert[]>> {
+    return this.get<MaintenanceAlert[]>(`${MAINTENANCE_BASE_URL}/canh-bao`, params);
+  }
+
+  async scanAlerts(): Promise<BaseResponse<MaintenanceAlertScanResult>> {
+    return this.post<MaintenanceAlertScanResult>(`${MAINTENANCE_BASE_URL}/canh-bao/scan`);
+  }
+
+  async resolveAlert(id: number, resolvedBy?: string): Promise<BaseResponse<void>> {
+    return this.put<void>(`${MAINTENANCE_BASE_URL}/canh-bao/${id}/resolve`, { resolvedBy });
   }
 }
 

@@ -51,9 +51,11 @@ import {
 import type { ColumnsType, TablePaginationConfig } from 'antd/es/table';
 import {
   useTrips,
+  useCreateTrip,
   useDeleteTrip,
   useCompleteTrip,
   useCancelTrip,
+  useUpdateTrip,
 } from '@features/admin/hooks/useTrips';
 import { useTableState } from '@features/admin/hooks/usePagination';
 import { formatDateTime, formatDate, formatCurrency, formatNumber } from '@utils/format';
@@ -103,10 +105,11 @@ const TripListEnhanced: React.FC = () => {
   const deleteMutation = useDeleteTrip();
   const completeMutation = useCompleteTrip();
   const cancelMutation = useCancelTrip();
+  const createTripMutation = useCreateTrip();
+  const updateTripMutation = useUpdateTrip();
 
-  // Use mock data as fallback
   const tripsData: TripDetail[] = useMemo(() => {
-    return data?.items?.length ? (data.items as TripDetail[]) : mockTrips;
+    return data?.items?.length ? (data.items as TripDetail[]) : [];
   }, [data]);
 
   // Get main drivers (lái xe chính)
@@ -179,7 +182,24 @@ const TripListEnhanced: React.FC = () => {
     }
 
     try {
-      message.success(editingTrip ? 'Cập nhật chuyến xe thành công' : 'Thêm chuyến xe thành công');
+      const payload = {
+        maChuyen: values.maChuyen,
+        tenChuyen: values.tenChuyen,
+        thoiGianKhoiHanh: values.thoiGianKhoiHanh?.toISOString(),
+        thoiGianDen: values.thoiGianDen?.toISOString(),
+        maXe: values.maXe,
+        maTuyen: values.maTuyen,
+      };
+
+      if (editingTrip) {
+        await updateTripMutation.mutateAsync({
+          maChuyen: editingTrip.maChuyen,
+          data: payload,
+        });
+      } else {
+        await createTripMutation.mutateAsync(payload);
+      }
+
       handleCloseModal();
     } catch (error: any) {
       message.error(error.message || 'Có lỗi xảy ra');
@@ -673,6 +693,23 @@ const TripListEnhanced: React.FC = () => {
               </Form.Item>
             </Col>
             <Col span={12}>
+              <Form.Item
+                name="thoiGianDen"
+                label="Thời gian đến"
+                rules={[{ required: true, message: 'Vui lòng chọn thời gian đến' }]}
+              >
+                <DatePicker
+                  showTime
+                  style={{ width: '100%' }}
+                  format="DD/MM/YYYY HH:mm"
+                  placeholder="Chọn ngày giờ đến"
+                />
+              </Form.Item>
+            </Col>
+          </Row>
+
+          <Row gutter={16}>
+            <Col span={12}>
               <Form.Item name="seasonType" label="Hệ số giá vé">
                 <Select
                   placeholder="Chọn loại ngày"
@@ -705,7 +742,11 @@ const TripListEnhanced: React.FC = () => {
           <Form.Item style={{ marginBottom: 0, marginTop: 24 }}>
             <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
               <Button onClick={handleCloseModal}>Hủy</Button>
-              <Button type="primary" htmlType="submit">
+              <Button
+                type="primary"
+                htmlType="submit"
+                loading={createTripMutation.isPending || updateTripMutation.isPending}
+              >
                 {editingTrip ? 'Cập nhật' : 'Thêm mới'}
               </Button>
             </Space>

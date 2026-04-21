@@ -1,334 +1,206 @@
-/**
- * Maintenance List Page
- * Quản lý bảo dưỡng và đăng kiểm xe
- *
- * Logic bảo dưỡng:
- * - Chu kỳ bảo dưỡng tối đa: 360 ngày
- * - Số ngày giảm: 1 ngày / 100km làm việc
- * - Km làm việc = km tuyến * hệ số đường khó
- */
-
-import { useState, useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import {
-  Card,
-  Table,
-  Button,
-  Typography,
-  Tag,
-  Tabs,
-  Statistic,
-  Row,
-  Col,
   Alert,
-  Modal,
+  Button,
+  Card,
+  Col,
+  DatePicker,
+  Empty,
   Form,
   Input,
   InputNumber,
-  DatePicker,
-  Select,
+  Modal,
+  Row,
   Space,
+  Statistic,
+  Table,
+  Tag,
+  Typography,
   message,
-  Tooltip,
-  Progress,
-  Descriptions,
-  Timeline,
-  Empty,
 } from 'antd';
-import {
-  ToolOutlined,
-  SafetyCertificateOutlined,
-  WarningOutlined,
-  PlusOutlined,
-  HistoryOutlined,
-  CarOutlined,
-  InfoCircleOutlined,
-  CheckCircleOutlined,
-  ExclamationCircleOutlined,
-  CloseCircleOutlined,
-} from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import maintenanceService from '@services/api/maintenance.service';
-import { formatDate, formatNumber, formatCurrency } from '@utils/format';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import dayjs from 'dayjs';
 import {
-  mockMaintenanceStatus,
-  mockMaintenanceHistory,
-  MAINTENANCE_CYCLE_DAYS,
-  KM_PER_DAY_REDUCTION,
-  MAINTENANCE_TYPES,
-  type MaintenanceStatusExtended,
-} from '@mocks/maintenance.mock';
-import type { CreateMaintenanceDto, Maintenance } from '@base/models/entities/maintenance';
+  CheckCircleOutlined,
+  HistoryOutlined,
+  ReloadOutlined,
+  SafetyCertificateOutlined,
+  ToolOutlined,
+  WarningOutlined,
+} from '@ant-design/icons';
+import maintenanceService from '@services/api/maintenance.service';
+import type {
+  CreateMaintenanceDto,
+  Maintenance,
+  MaintenanceAlert,
+  MaintenanceStatus,
+} from '@base/models/entities/maintenance';
+import { formatCurrency, formatDate, formatNumber } from '@utils/format';
 
 const { Title, Text } = Typography;
 
-// Get status icon and color
-const getStatusIcon = (status: string) => {
-  switch (status) {
-    case 'Bình thường':
-      return <CheckCircleOutlined style={{ color: '#52c41a' }} />;
-    case 'Sắp đến hạn':
-      return <ExclamationCircleOutlined style={{ color: '#faad14' }} />;
-    case 'Quá hạn':
-      return <CloseCircleOutlined style={{ color: '#ff4d4f' }} />;
-    default:
-      return null;
-  }
-};
-
-const getStatusColor = (status: string) => {
-  switch (status) {
-    case 'Bình thường':
-      return 'green';
-    case 'Sắp đến hạn':
-      return 'orange';
-    case 'Quá hạn':
-      return 'red';
-    default:
-      return 'default';
-  }
-};
-
-// Calculate progress percentage
-const calcProgress = (daysLeft: number): number => {
-  if (daysLeft <= 0) return 100;
-  return Math.max(0, Math.min(100, 100 - (daysLeft / MAINTENANCE_CYCLE_DAYS) * 100));
-};
-
 const MaintenanceList: React.FC = () => {
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState('status');
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [selectedVehicle, setSelectedVehicle] = useState<MaintenanceStatusExtended | null>(null);
+  const [activeTab, setActiveTab] = useState<'status' | 'alerts'>('status');
+  const [selectedVehicle, setSelectedVehicle] = useState<MaintenanceStatus | null>(null);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
-  const [form] = Form.useForm();
+  const [form] = Form.useForm<CreateMaintenanceDto>();
 
-  // Fetch maintenance status (use mock if API not available)
-  const { data: statusData, isLoading: isLoadingStatus } = useQuery({
+  const { data: statusResponse, isLoading: isStatusLoading, error: statusError } = useQuery({
     queryKey: ['maintenance-status'],
-    queryFn: async () => {
-      try {
-        const response = await maintenanceService.getStatus();
-        if (response.success) {
-          return response.data;
-        }
-        return mockMaintenanceStatus;
-      } catch {
-        return mockMaintenanceStatus;
-      }
-    },
+    queryFn: () => maintenanceService.getStatus(),
   });
 
-  // Fetch maintenance history
-  const { data: historyData, isLoading: isLoadingHistory } = useQuery({
+  const { data: alertResponse, isLoading: isAlertLoading, error: alertError } = useQuery({
+    queryKey: ['maintenance-alerts'],
+    queryFn: () => maintenanceService.getAlerts({ status: 'pending' }),
+  });
+
+  const { data: historyResponse, isLoading: isHistoryLoading } = useQuery({
     queryKey: ['maintenance-history', selectedVehicle?.maXe],
-    queryFn: async () => {
-      if (!selectedVehicle?.maXe) return [];
-      try {
-        const response = await maintenanceService.getHistory(selectedVehicle.maXe);
-        if (response.success) {
-          return response.data;
-        }
-        return mockMaintenanceHistory.filter((h) => h.maXe === selectedVehicle.maXe);
-      } catch {
-        return mockMaintenanceHistory.filter((h) => h.maXe === selectedVehicle.maXe);
-      }
-    },
-    enabled: !!selectedVehicle?.maXe,
+    queryFn: () => maintenanceService.getHistory(selectedVehicle!.maXe),
+    enabled: isHistoryModalOpen && !!selectedVehicle?.maXe,
   });
 
-  // Create maintenance mutation
   const createMutation = useMutation({
-    mutationFn: (data: CreateMaintenanceDto) => maintenanceService.create(data),
-    onSuccess: () => {
-      message.success('Ghi nhận bảo dưỡng thành công');
-      queryClient.invalidateQueries({ queryKey: ['maintenance-status'] });
-      setIsAddModalOpen(false);
+    mutationFn: (payload: CreateMaintenanceDto) => maintenanceService.create(payload),
+    onSuccess: (response) => {
+      if (!response.success) {
+        message.error(response.message || 'Không thể ghi nhận bảo dưỡng.');
+        return;
+      }
+
+      message.success('Đã ghi nhận bảo dưỡng.');
+      setIsCreateModalOpen(false);
       form.resetFields();
+      queryClient.invalidateQueries({ queryKey: ['maintenance-status'] });
+      queryClient.invalidateQueries({ queryKey: ['maintenance-alerts'] });
     },
-    onError: (error: Error) => {
-      message.error(error.message || 'Có lỗi xảy ra');
-    },
+    onError: (error: Error) => message.error(error.message),
   });
 
-  const maintenanceStatus = (statusData || mockMaintenanceStatus) as MaintenanceStatusExtended[];
+  const resolveAlertMutation = useMutation({
+    mutationFn: (id: number) => maintenanceService.resolveAlert(id, 'admin-ui'),
+    onSuccess: (response) => {
+      if (!response.success) {
+        message.error(response.message || 'Không thể cập nhật cảnh báo.');
+        return;
+      }
 
-  // Statistics
+      message.success('Đã đánh dấu cảnh báo là đã xử lý.');
+      queryClient.invalidateQueries({ queryKey: ['maintenance-alerts'] });
+      queryClient.invalidateQueries({ queryKey: ['maintenance-status'] });
+    },
+    onError: (error: Error) => message.error(error.message),
+  });
+
+  const scanMutation = useMutation({
+    mutationFn: () => maintenanceService.scanAlerts(),
+    onSuccess: (response) => {
+      if (!response.success) {
+        message.error(response.message || 'Quét cảnh báo thất bại.');
+        return;
+      }
+
+      message.success(
+        `Đã quét ${response.data.totalEvaluated} xe, còn ${response.data.activeAlerts} cảnh báo đang mở.`,
+      );
+      queryClient.invalidateQueries({ queryKey: ['maintenance-alerts'] });
+      queryClient.invalidateQueries({ queryKey: ['maintenance-status'] });
+    },
+    onError: (error: Error) => message.error(error.message),
+  });
+
+  const statusData = statusResponse?.data ?? [];
+  const alertData = alertResponse?.data ?? [];
+  const historyData = historyResponse?.data ?? [];
+
   const stats = useMemo(() => {
-    const total = maintenanceStatus.length;
-    const normal = maintenanceStatus.filter((v) => v.trangThaiBaoTri === 'Bình thường').length;
-    const nearDue = maintenanceStatus.filter((v) => v.trangThaiBaoTri === 'Sắp đến hạn').length;
-    const overdue = maintenanceStatus.filter((v) => v.trangThaiBaoTri === 'Quá hạn').length;
-    const overdueRegistration = maintenanceStatus.filter(
-      (v) => (v.soNgayDenDangKiem || 999) <= 0,
-    ).length;
-    return { total, normal, nearDue, overdue, overdueRegistration };
-  }, [maintenanceStatus]);
+    const overdueMaintenance = statusData.filter((item) => item.trangThaiBaoTri === 'Quá hạn').length;
+    const dueSoonMaintenance = statusData.filter((item) => item.trangThaiBaoTri === 'Sắp đến hạn').length;
+    const overdueInspection = statusData.filter((item) => item.trangThaiDangKiem === 'Quá hạn').length;
 
-  // Overdue vehicles list
-  const overdueVehicles = useMemo(() => {
-    return maintenanceStatus.filter((v) => v.trangThaiBaoTri === 'Quá hạn');
-  }, [maintenanceStatus]);
+    return {
+      total: statusData.length,
+      overdueMaintenance,
+      dueSoonMaintenance,
+      overdueInspection,
+      activeAlerts: alertData.length,
+    };
+  }, [alertData.length, statusData]);
 
-  const handleAddMaintenance = (vehicle: MaintenanceStatusExtended) => {
+  const openCreateModal = (vehicle: MaintenanceStatus) => {
     setSelectedVehicle(vehicle);
     form.setFieldsValue({
       maXe: vehicle.maXe,
-      soKm: vehicle.tongKmVanHanh,
-      ngay: dayjs(),
+      ngay: dayjs().format('YYYY-MM-DD'),
+      soKm: vehicle.tongKmVanHanh ?? 0,
     });
-    setIsAddModalOpen(true);
+    setIsCreateModalOpen(true);
   };
 
-  const handleViewHistory = (vehicle: MaintenanceStatusExtended) => {
+  const openHistoryModal = (vehicle: MaintenanceStatus) => {
     setSelectedVehicle(vehicle);
     setIsHistoryModalOpen(true);
   };
 
-  const handleSubmitMaintenance = async (values: any) => {
-    const data: CreateMaintenanceDto = {
-      maBaoTri: `BT${Date.now()}`,
-      maXe: values.maXe,
-      donVi: values.donVi,
-      chiPhi: values.chiPhi,
-      ngay: values.ngay?.format('YYYY-MM-DD'),
-      soKm: values.soKm,
-    };
-    await createMutation.mutateAsync(data);
-  };
-
-  // Main status columns
-  const statusColumns: ColumnsType<MaintenanceStatusExtended> = [
+  const statusColumns: ColumnsType<MaintenanceStatus> = [
     {
       title: 'Xe',
       key: 'vehicle',
-      width: 200,
       render: (_, record) => (
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <CarOutlined style={{ color: '#1677ff' }} />
-            <Text strong>{record.tenXe || record.maXe}</Text>
-          </div>
-          <Tag color="blue" style={{ marginTop: 4 }}>
-            {record.bienSo}
-          </Tag>
-        </div>
+        <Space direction="vertical" size={2}>
+          <Text strong>{record.tenXe || record.maXe}</Text>
+          <Text type="secondary">{record.bienSo || record.maXe}</Text>
+        </Space>
       ),
     },
     {
-      title: 'Trạng thái xe',
-      dataIndex: 'trangThai',
-      key: 'trangThai',
-      width: 120,
-      render: (text) => {
-        const color = text === 'Hoạt động' ? 'green' : text === 'Bảo trì' ? 'orange' : 'red';
-        return <Tag color={color}>{text}</Tag>;
-      },
-    },
-    {
-      title: (
-        <span>
-          <ToolOutlined /> Bảo dưỡng{' '}
-          <Tooltip
-            title={`Chu kỳ: ${MAINTENANCE_CYCLE_DAYS} ngày, giảm 1 ngày mỗi ${KM_PER_DAY_REDUCTION}km`}
-          >
-            <InfoCircleOutlined />
-          </Tooltip>
-        </span>
-      ),
+      title: 'Bảo dưỡng',
       key: 'maintenance',
-      width: 280,
-      render: (_, record) => {
-        const progress = calcProgress(record.soNgayConLai);
-        const isOverdue = record.soNgayConLai <= 0;
-        return (
-          <div>
-            <div style={{ marginBottom: 8 }}>
-              {getStatusIcon(record.trangThaiBaoTri ?? '')}
-              <Tag color={getStatusColor(record.trangThaiBaoTri ?? '')} style={{ marginLeft: 8 }}>
-                {record.trangThaiBaoTri}
-              </Tag>
-            </div>
-            <Progress
-              percent={progress}
-              size="small"
-              status={isOverdue ? 'exception' : progress > 80 ? 'active' : 'normal'}
-              format={() =>
-                isOverdue
-                  ? `Quá ${Math.abs(record.soNgayConLai)} ngày`
-                  : `Còn ${record.soNgayConLai} ngày`
-              }
-            />
-            <div style={{ fontSize: 12, marginTop: 4 }}>
-              <Text type="secondary">Tiếp theo: {formatDate(record.ngayBaoTriTiepTheo)}</Text>
-            </div>
-          </div>
-        );
-      },
+      render: (_, record) => (
+        <Space direction="vertical" size={2}>
+          <Tag color={record.trangThaiBaoTri === 'Quá hạn' ? 'red' : record.trangThaiBaoTri === 'Sắp đến hạn' ? 'orange' : 'green'}>
+            {record.trangThaiBaoTri || 'Chưa rõ'}
+          </Tag>
+          <Text type="secondary">
+            Đến hạn: {formatDate(record.ngayBaoTriTiepTheo)} ({record.soNgayConLai ?? '-'} ngày)
+          </Text>
+        </Space>
+      ),
+    },
+    {
+      title: 'Đăng kiểm',
+      key: 'inspection',
+      render: (_, record) => (
+        <Space direction="vertical" size={2}>
+          <Tag color={record.trangThaiDangKiem === 'Quá hạn' ? 'red' : record.trangThaiDangKiem === 'Sắp đến hạn' ? 'orange' : 'green'}>
+            {record.trangThaiDangKiem || 'Chưa rõ'}
+          </Tag>
+          <Text type="secondary">
+            Hạn: {formatDate(record.ngayDangKiem)} ({record.soNgayDenDangKiem ?? '-'} ngày)
+          </Text>
+        </Space>
+      ),
     },
     {
       title: 'KM vận hành',
-      key: 'km',
-      width: 150,
-      render: (_, record) => (
-        <div>
-          <Text strong>{formatNumber(record.tongKmVanHanh)} km</Text>
-          <div style={{ fontSize: 12 }}>
-            <Text type="secondary">Từ bảo trì: {formatNumber(record.kmTuBaoTri)} km</Text>
-          </div>
-        </div>
-      ),
-    },
-    {
-      title: (
-        <span>
-          <SafetyCertificateOutlined /> Đăng kiểm
-        </span>
-      ),
-      key: 'registration',
-      width: 180,
-      render: (_, record) => {
-        const isOverdue = record.soNgayDenDangKiem <= 0;
-        const isNearDue = record.soNgayDenDangKiem > 0 && record.soNgayDenDangKiem <= 30;
-        return (
-          <div>
-            <Tag color={isOverdue ? 'red' : isNearDue ? 'orange' : 'green'}>
-              {formatDate(record.hanDangKiem)}
-            </Tag>
-            <div style={{ fontSize: 12, marginTop: 4 }}>
-              {isOverdue ? (
-                <Text type="danger">Quá hạn {Math.abs(record.soNgayDenDangKiem)} ngày</Text>
-              ) : (
-                <Text type="secondary">Còn {record.soNgayDenDangKiem} ngày</Text>
-              )}
-            </div>
-          </div>
-        );
-      },
-    },
-    {
-      title: 'Bảo trì gần nhất',
-      dataIndex: 'ngayBaoTriCuoi',
-      key: 'ngayBaoTriCuoi',
-      width: 130,
-      render: (text) => formatDate(text),
+      dataIndex: 'tongKmVanHanh',
+      key: 'tongKmVanHanh',
+      align: 'right',
+      render: (value) => `${formatNumber(value)} km`,
     },
     {
       title: 'Thao tác',
-      key: 'action',
-      width: 160,
+      key: 'actions',
       render: (_, record) => (
         <Space>
-          <Button
-            type="primary"
-            size="small"
-            icon={<PlusOutlined />}
-            onClick={() => handleAddMaintenance(record)}
-          >
-            Bảo dưỡng
+          <Button type="primary" icon={<ToolOutlined />} onClick={() => openCreateModal(record)}>
+            Ghi nhận bảo dưỡng
           </Button>
-          <Button size="small" icon={<HistoryOutlined />} onClick={() => handleViewHistory(record)}>
+          <Button icon={<HistoryOutlined />} onClick={() => openHistoryModal(record)}>
             Lịch sử
           </Button>
         </Space>
@@ -336,51 +208,63 @@ const MaintenanceList: React.FC = () => {
     },
   ];
 
-  // Overdue vehicles columns (simplified)
-  const overdueColumns: ColumnsType<MaintenanceStatusExtended> = [
+  const alertColumns: ColumnsType<MaintenanceAlert> = [
+    {
+      title: 'Mức độ',
+      dataIndex: 'severity',
+      key: 'severity',
+      width: 120,
+      render: (value) => (
+        <Tag color={value === 'critical' ? 'red' : 'orange'}>
+          {value === 'critical' ? 'Quá hạn' : 'Sắp đến hạn'}
+        </Tag>
+      ),
+    },
     {
       title: 'Xe',
       key: 'vehicle',
       render: (_, record) => (
-        <div>
-          <Text strong>{record.tenXe}</Text>
-          <div>
-            <Tag color="blue">{record.bienSo}</Tag>
-          </div>
-        </div>
+        <Space direction="vertical" size={2}>
+          <Text strong>{record.tenXe || record.maXe}</Text>
+          <Text type="secondary">{record.bienSo || record.maXe}</Text>
+        </Space>
       ),
     },
     {
-      title: 'Tình trạng',
-      key: 'status',
+      title: 'Cảnh báo',
+      key: 'content',
       render: (_, record) => (
-        <div>
-          <Tag color="red">Quá hạn {Math.abs(record.soNgayConLai)} ngày</Tag>
-          <div style={{ marginTop: 4 }}>
-            <Text type="secondary" style={{ fontSize: 12 }}>
-              Ngày bảo trì gần nhất: {formatDate(record.ngayBaoTriCuoi)}
-            </Text>
-          </div>
-        </div>
+        <Space direction="vertical" size={2}>
+          <Text strong>{record.title}</Text>
+          <Text type="secondary">{record.messageSnapshot}</Text>
+        </Space>
       ),
     },
     {
-      title: 'KM từ bảo trì',
-      dataIndex: 'kmTuBaoTri',
-      key: 'kmTuBaoTri',
-      render: (text) => `${formatNumber(text)} km`,
+      title: 'Đến hạn',
+      dataIndex: 'dueDate',
+      key: 'dueDate',
+      render: (value) => formatDate(value),
     },
     {
       title: 'Thao tác',
-      key: 'action',
+      key: 'actions',
+      width: 170,
       render: (_, record) => (
         <Button
-          type="primary"
-          danger
-          icon={<ToolOutlined />}
-          onClick={() => handleAddMaintenance(record)}
+          icon={<CheckCircleOutlined />}
+          loading={resolveAlertMutation.isPending}
+          onClick={() =>
+            Modal.confirm({
+              title: 'Đánh dấu đã xử lý',
+              content: 'Cảnh báo này sẽ được chuyển sang trạng thái đã xử lý.',
+              okText: 'Xác nhận',
+              cancelText: 'Hủy',
+              onOk: async () => resolveAlertMutation.mutateAsync(record.id),
+            })
+          }
         >
-          Bảo dưỡng ngay
+          Đã xử lý
         </Button>
       ),
     },
@@ -389,288 +273,200 @@ const MaintenanceList: React.FC = () => {
   const tabItems = [
     {
       key: 'status',
-      label: (
-        <span>
-          <CarOutlined /> Trạng thái bảo dưỡng
-        </span>
-      ),
-      children: (
-        <Table<MaintenanceStatusExtended>
-          columns={statusColumns}
-          dataSource={maintenanceStatus}
+      label: 'Trạng thái bảo dưỡng',
+      children: statusError ? (
+        <Alert type="error" showIcon message="Không tải được trạng thái bảo dưỡng" description={(statusError as Error).message} />
+      ) : (
+        <Table
           rowKey="maXe"
-          loading={isLoadingStatus}
-          pagination={{ pageSize: 10 }}
-          scroll={{ x: 1200 }}
+          loading={isStatusLoading}
+          columns={statusColumns}
+          dataSource={statusData}
+          pagination={{ pageSize: 10, showSizeChanger: false }}
+          locale={{ emptyText: <Empty description="Chưa có dữ liệu bảo dưỡng." /> }}
+          scroll={{ x: 960 }}
         />
       ),
     },
     {
-      key: 'overdue',
-      label: (
-        <span>
-          <WarningOutlined /> Xe quá hạn ({stats.overdue})
-        </span>
+      key: 'alerts',
+      label: `Cảnh báo đang mở (${stats.activeAlerts})`,
+      children: alertError ? (
+        <Alert type="error" showIcon message="Không tải được cảnh báo" description={(alertError as Error).message} />
+      ) : (
+        <Table
+          rowKey="id"
+          loading={isAlertLoading}
+          columns={alertColumns}
+          dataSource={alertData}
+          pagination={{ pageSize: 10, showSizeChanger: false }}
+          locale={{ emptyText: <Empty description="Không có cảnh báo đang mở." /> }}
+          scroll={{ x: 900 }}
+        />
       ),
-      children:
-        overdueVehicles.length > 0 ? (
-          <Table<MaintenanceStatusExtended>
-            columns={overdueColumns}
-            dataSource={overdueVehicles}
-            rowKey="maXe"
-            pagination={false}
-          />
-        ) : (
-          <Empty description="Không có xe quá hạn bảo dưỡng" />
-        ),
     },
   ];
 
   return (
     <div style={{ padding: 24 }}>
-      {/* Page Header */}
       <div style={{ marginBottom: 24 }}>
-        <Title level={2} style={{ margin: 0 }}>
+        <Title level={2} style={{ marginBottom: 8 }}>
           <SafetyCertificateOutlined /> Bảo dưỡng & Đăng kiểm
         </Title>
         <Text type="secondary">
-          Quản lý lịch bảo dưỡng và đăng kiểm xe. Chu kỳ bảo dưỡng: {MAINTENANCE_CYCLE_DAYS} ngày,
-          giảm 1 ngày mỗi {KM_PER_DAY_REDUCTION}km vận hành.
+          Theo dõi trạng thái bảo dưỡng, đăng kiểm và cảnh báo vận hành theo dữ liệu thật.
         </Text>
       </div>
 
-      {/* Statistics */}
       <Row gutter={16} style={{ marginBottom: 16 }}>
-        <Col span={5}>
+        <Col xs={24} md={8} xl={5}>
           <Card>
-            <Statistic title="Tổng số xe" value={stats.total} />
+            <Statistic title="Tổng xe" value={stats.total} />
           </Card>
         </Col>
-        <Col span={5}>
+        <Col xs={24} md={8} xl={5}>
           <Card>
-            <Statistic
-              title="Bình thường"
-              value={stats.normal}
-              valueStyle={{ color: '#52c41a' }}
-              prefix={<CheckCircleOutlined />}
-            />
+            <Statistic title="Quá hạn bảo dưỡng" value={stats.overdueMaintenance} valueStyle={{ color: '#cf1322' }} />
           </Card>
         </Col>
-        <Col span={5}>
+        <Col xs={24} md={8} xl={5}>
           <Card>
-            <Statistic
-              title="Sắp đến hạn"
-              value={stats.nearDue}
-              valueStyle={{ color: '#faad14' }}
-              prefix={<ExclamationCircleOutlined />}
-            />
+            <Statistic title="Sắp đến hạn" value={stats.dueSoonMaintenance} valueStyle={{ color: '#d48806' }} />
           </Card>
         </Col>
-        <Col span={5}>
+        <Col xs={24} md={8} xl={5}>
           <Card>
-            <Statistic
-              title="Quá hạn bảo dưỡng"
-              value={stats.overdue}
-              valueStyle={{ color: '#ff4d4f' }}
-              prefix={<CloseCircleOutlined />}
-            />
+            <Statistic title="Quá hạn đăng kiểm" value={stats.overdueInspection} valueStyle={{ color: '#cf1322' }} />
           </Card>
         </Col>
-        <Col span={4}>
+        <Col xs={24} md={8} xl={4}>
           <Card>
-            <Statistic
-              title="Quá hạn đăng kiểm"
-              value={stats.overdueRegistration}
-              valueStyle={{ color: '#ff4d4f' }}
-              prefix={<SafetyCertificateOutlined />}
-            />
+            <Statistic title="Cảnh báo mở" value={stats.activeAlerts} valueStyle={{ color: stats.activeAlerts > 0 ? '#d48806' : '#389e0d' }} />
           </Card>
         </Col>
       </Row>
 
-      {/* Alerts */}
-      {stats.overdue > 0 && (
+      {stats.activeAlerts > 0 && (
         <Alert
-          message={
-            <span>
-              <strong>Cảnh báo:</strong> Có {stats.overdue} xe quá hạn bảo dưỡng cần xử lý ngay!
-            </span>
-          }
-          type="error"
-          showIcon
-          style={{ marginBottom: 16 }}
-        />
-      )}
-      {stats.nearDue > 0 && (
-        <Alert
-          message={`Có ${stats.nearDue} xe sắp đến hạn bảo dưỡng trong 30 ngày tới`}
           type="warning"
           showIcon
+          icon={<WarningOutlined />}
+          message={`Có ${stats.activeAlerts} cảnh báo cần xử lý.`}
           style={{ marginBottom: 16 }}
         />
       )}
 
-      {/* Info Card */}
-      <Card style={{ marginBottom: 16 }}>
-        <Title level={5} style={{ marginBottom: 16 }}>
-          <InfoCircleOutlined /> Quy tắc tính ngày bảo dưỡng
-        </Title>
-        <Descriptions column={2} bordered size="small">
-          <Descriptions.Item label="Chu kỳ bảo dưỡng">
-            {MAINTENANCE_CYCLE_DAYS} ngày
-          </Descriptions.Item>
-          <Descriptions.Item label="Giảm ngày theo KM">
-            1 ngày / {KM_PER_DAY_REDUCTION} km vận hành
-          </Descriptions.Item>
-          <Descriptions.Item label="Công thức KM thực tế" span={2}>
-            <code>KM thực tế = KM tuyến × Hệ số đường khó</code>
-          </Descriptions.Item>
-        </Descriptions>
-      </Card>
-
-      {/* Main Table */}
-      <Card>
-        <Tabs activeKey={activeTab} onChange={setActiveTab} items={tabItems} />
-      </Card>
-
-      {/* Add Maintenance Modal */}
-      <Modal
-        title={
-          <span>
-            <ToolOutlined /> Ghi nhận bảo dưỡng - {selectedVehicle?.tenXe}
-          </span>
+      <Card
+        extra={
+          <Space>
+            <Button icon={<ReloadOutlined />} onClick={() => queryClient.invalidateQueries({ queryKey: ['maintenance-status'] })}>
+              Làm mới
+            </Button>
+            <Button type="primary" loading={scanMutation.isPending} onClick={() => scanMutation.mutate()}>
+              Quét cảnh báo
+            </Button>
+          </Space>
         }
-        open={isAddModalOpen}
+      >
+        <SegmentedLikeTabs activeTab={activeTab} onChange={setActiveTab} />
+        <div style={{ marginTop: 16 }}>{tabItems.find((item) => item.key === activeTab)?.children}</div>
+      </Card>
+
+      <Modal
+        title={`Ghi nhận bảo dưỡng - ${selectedVehicle?.tenXe || selectedVehicle?.maXe || ''}`}
+        open={isCreateModalOpen}
         onCancel={() => {
-          setIsAddModalOpen(false);
+          setIsCreateModalOpen(false);
           form.resetFields();
         }}
-        footer={null}
-        width={500}
+        onOk={() => form.submit()}
+        confirmLoading={createMutation.isPending}
+        okText="Lưu"
+        cancelText="Hủy"
       >
-        <Form form={form} layout="vertical" onFinish={handleSubmitMaintenance}>
-          <Form.Item name="maXe" label="Mã xe">
+        <Form
+          form={form}
+          layout="vertical"
+          onFinish={(values) =>
+            createMutation.mutate({
+              ...values,
+              maBaoTri: `BT${Date.now()}`,
+              ngay: values.ngay ? dayjs(values.ngay).format('YYYY-MM-DD') : undefined,
+            })
+          }
+        >
+          <Form.Item name="maXe" label="Mã xe" rules={[{ required: true }]}>
             <Input disabled />
           </Form.Item>
-
-          <Form.Item
-            name="ngay"
-            label="Ngày bảo dưỡng"
-            rules={[{ required: true, message: 'Vui lòng chọn ngày' }]}
-          >
+          <Form.Item name="ngay" label="Ngày bảo dưỡng" rules={[{ required: true, message: 'Chọn ngày bảo dưỡng.' }]}>
             <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
           </Form.Item>
-
-          <Form.Item
-            name="loaiBaoTri"
-            label="Loại bảo dưỡng"
-            rules={[{ required: true, message: 'Vui lòng chọn loại' }]}
-          >
-            <Select placeholder="Chọn loại bảo dưỡng">
-              {MAINTENANCE_TYPES.map((t) => (
-                <Select.Option key={t.ma} value={t.ma}>
-                  {t.ten}
-                </Select.Option>
-              ))}
-            </Select>
+          <Form.Item name="donVi" label="Đơn vị bảo dưỡng" rules={[{ required: true, message: 'Nhập đơn vị bảo dưỡng.' }]}>
+            <Input placeholder="Ví dụ: Garage Thành Công" />
           </Form.Item>
-
-          <Form.Item
-            name="donVi"
-            label="Đơn vị bảo dưỡng"
-            rules={[{ required: true, message: 'Vui lòng nhập đơn vị' }]}
-          >
-            <Input placeholder="VD: Garage Thành Công" />
+          <Form.Item name="soKm" label="Số km hiện tại" rules={[{ required: true, message: 'Nhập số km hiện tại.' }]}>
+            <InputNumber style={{ width: '100%' }} min={0} />
           </Form.Item>
-
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item
-                name="soKm"
-                label="Số KM hiện tại"
-                rules={[{ required: true, message: 'Vui lòng nhập số KM' }]}
-              >
-                <InputNumber
-                  style={{ width: '100%' }}
-                  min={0}
-                  formatter={(value) => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-                  addonAfter="km"
-                />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item
-                name="chiPhi"
-                label="Chi phí"
-                rules={[{ required: true, message: 'Vui lòng nhập chi phí' }]}
-              >
-                <InputNumber
-                  style={{ width: '100%' }}
-                  min={0}
-                  formatter={(value) => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-                  addonAfter="VND"
-                />
-              </Form.Item>
-            </Col>
-          </Row>
-
-          <Form.Item name="ghiChu" label="Ghi chú">
-            <Input.TextArea rows={3} placeholder="Mô tả công việc bảo dưỡng..." />
-          </Form.Item>
-
-          <Form.Item style={{ marginBottom: 0, marginTop: 16 }}>
-            <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
-              <Button
-                onClick={() => {
-                  setIsAddModalOpen(false);
-                  form.resetFields();
-                }}
-              >
-                Hủy
-              </Button>
-              <Button type="primary" htmlType="submit" loading={createMutation.isPending}>
-                Lưu bảo dưỡng
-              </Button>
-            </Space>
+          <Form.Item name="chiPhi" label="Chi phí" rules={[{ required: true, message: 'Nhập chi phí.' }]}>
+            <InputNumber style={{ width: '100%' }} min={0} addonAfter="VND" />
           </Form.Item>
         </Form>
       </Modal>
 
-      {/* History Modal */}
       <Modal
-        title={
-          <span>
-            <HistoryOutlined /> Lịch sử bảo dưỡng - {selectedVehicle?.tenXe}
-          </span>
-        }
+        title={`Lịch sử bảo dưỡng - ${selectedVehicle?.tenXe || selectedVehicle?.maXe || ''}`}
         open={isHistoryModalOpen}
         onCancel={() => setIsHistoryModalOpen(false)}
-        footer={<Button onClick={() => setIsHistoryModalOpen(false)}>Đóng</Button>}
-        width={600}
+        footer={null}
       >
-        {historyData && historyData.length > 0 ? (
-          <Timeline mode="left">
-            {historyData.map((item: Maintenance) => (
-              <Timeline.Item key={item.maBaoTri} label={formatDate(item.ngay)} color="blue">
-                <Card size="small">
-                  <Descriptions column={1} size="small">
-                    <Descriptions.Item label="Đơn vị">{item.donVi}</Descriptions.Item>
-                    <Descriptions.Item label="Số KM">
-                      {formatNumber(item.soKm)} km
-                    </Descriptions.Item>
-                    <Descriptions.Item label="Chi phí">
-                      {formatCurrency(item.chiPhi)}
-                    </Descriptions.Item>
-                  </Descriptions>
-                </Card>
-              </Timeline.Item>
-            ))}
-          </Timeline>
+        {isHistoryLoading ? (
+          <div style={{ textAlign: 'center', padding: 32 }}>Đang tải...</div>
+        ) : historyData.length === 0 ? (
+          <Empty description="Chưa có lịch sử bảo dưỡng." />
         ) : (
-          <Empty description="Chưa có lịch sử bảo dưỡng" />
+          <Table<Maintenance>
+            rowKey="maBaoTri"
+            dataSource={historyData}
+            pagination={false}
+            columns={[
+              { title: 'Mã', dataIndex: 'maBaoTri', key: 'maBaoTri', width: 120 },
+              { title: 'Ngày', dataIndex: 'ngay', key: 'ngay', render: (value) => formatDate(value) },
+              { title: 'Đơn vị', dataIndex: 'donVi', key: 'donVi' },
+              {
+                title: 'Số km',
+                dataIndex: 'soKm',
+                key: 'soKm',
+                align: 'right',
+                render: (value) => formatNumber(value),
+              },
+              {
+                title: 'Chi phí',
+                dataIndex: 'chiPhi',
+                key: 'chiPhi',
+                align: 'right',
+                render: (value) => formatCurrency(value ?? 0),
+              },
+            ]}
+          />
         )}
       </Modal>
     </div>
+  );
+};
+
+const SegmentedLikeTabs: React.FC<{
+  activeTab: 'status' | 'alerts';
+  onChange: (value: 'status' | 'alerts') => void;
+}> = ({ activeTab, onChange }) => {
+  return (
+    <Space>
+      <Button type={activeTab === 'status' ? 'primary' : 'default'} onClick={() => onChange('status')}>
+        Trạng thái bảo dưỡng
+      </Button>
+      <Button type={activeTab === 'alerts' ? 'primary' : 'default'} onClick={() => onChange('alerts')}>
+        Cảnh báo
+      </Button>
+    </Space>
   );
 };
 

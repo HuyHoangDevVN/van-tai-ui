@@ -13,54 +13,23 @@ const axiosInstance = axios.create({
 });
 
 axiosInstance.interceptors.request.use((config) => {
-  const accessToken = '';
+  const accessToken = localStorage.getItem('auth_token');
+  const rawUser = localStorage.getItem('auth_user');
+  const user = rawUser ? JSON.parse(rawUser) : null;
+
   if (accessToken) {
     config.headers.Authorization = `Bearer ${accessToken}`;
   }
+
+  if (user?.role) {
+    config.headers['X-User-Role'] = user.role;
+  }
+
   return config;
 });
 
-let isRefreshing = false;
-let pendingRequests: ((token: string) => void)[] = [];
-
-axiosInstance.interceptors.response.use(
-  (response) => response,
-  async (error: AxiosError & { config: any }) => {
-    const original = error.config;
-    if (error.response?.status === 401 && !original._retry) {
-      if (isRefreshing) {
-        return new Promise((resolve) => {
-          pendingRequests.push((token) => {
-            original.headers.Authorization = `Bearer ${token}`;
-            resolve(axiosInstance(original));
-          });
-        });
-      }
-      original._retry = true;
-      isRefreshing = true;
-      try {
-        const response = await axios.post(
-          `${API_URL}/auth/refresh`,
-          {},
-          {
-            withCredentials: false,
-          },
-        );
-        if (response.status === 200) {
-          const { accessToken } = response.data;
-          pendingRequests.forEach((cb) => cb(accessToken));
-          pendingRequests = [];
-          original.headers.Authorization = `Bearer ${accessToken}`;
-          return axiosInstance(original);
-        }
-      } catch (error) {
-        return Promise.reject(error);
-      } finally {
-        isRefreshing = false;
-      }
-    }
-    return Promise.reject(error);
-  },
-);
+axiosInstance.interceptors.response.use((response) => response, (error: AxiosError) => {
+  return Promise.reject(error);
+});
 
 export default axiosInstance;

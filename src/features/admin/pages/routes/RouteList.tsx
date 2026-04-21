@@ -206,7 +206,7 @@ const RouteList: React.FC = () => {
         title: 'Tên tuyến',
         dataIndex: 'tenTuyen',
         key: 'tenTuyen',
-        render: (text, record) => (
+        render: (text) => (
           <div>
             <div className="font-medium">{text || '-'}</div>
             <Text type="secondary" style={{ fontSize: 12 }}>

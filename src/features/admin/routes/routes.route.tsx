@@ -18,7 +18,7 @@ export const routeCreateRoute = createRoute({
   path: '/routes/create',
   component: lazyRouteComponent(
     () => import('@features/admin/pages/routes/RouteForm'),
-    'RouteForm',
+    'RouteCreatePage',
   ),
 });
 
@@ -28,7 +28,7 @@ export const routeEditRoute = createRoute({
   path: '/routes/$maTuyen/edit',
   component: lazyRouteComponent(
     () => import('@features/admin/pages/routes/RouteForm'),
-    'RouteForm',
+    'RouteEditPage',
   ),
 });
 

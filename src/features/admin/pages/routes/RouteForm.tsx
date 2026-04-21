@@ -204,3 +204,7 @@ const RouteForm: React.FC<RouteFormProps> = ({ mode }) => {
 };
 
 export default RouteForm;
+
+export const RouteCreatePage: React.FC = () => <RouteForm mode="create" />;
+
+export const RouteEditPage: React.FC = () => <RouteForm mode="edit" />;

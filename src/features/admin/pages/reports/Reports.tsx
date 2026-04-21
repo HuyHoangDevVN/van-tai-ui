@@ -1,297 +1,292 @@
-/**
- * Reports Page
- * Trang báo cáo thống kê
- */
-
-import { useState } from 'react';
-import { Card, Tabs, Table, Typography, Spin, Empty, DatePicker, Button, Space } from 'antd';
+import { useMemo, useState } from 'react';
 import {
-  FileTextOutlined,
-  DollarOutlined,
-  BarChartOutlined,
-  TeamOutlined,
-  SearchOutlined,
-} from '@ant-design/icons';
+  Alert,
+  Card,
+  Col,
+  DatePicker,
+  Empty,
+  Row,
+  Segmented,
+  Space,
+  Spin,
+  Statistic,
+  Table,
+  Typography,
+} from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import dayjs from 'dayjs';
+import dayjs, { Dayjs } from 'dayjs';
 import {
-  useChiPhiCoBan,
-  useGiaVeXeBusNgoi,
+  useDoanhThuTuyenDuong,
   useDoanhThuXeBusNgoi,
   useLuongThangTaiXe,
 } from '@features/admin/hooks/useReports';
-import { formatCurrency, formatNumber } from '@utils/format';
 import type {
-  ChiPhiCoBanReport,
-  GiaVeXeBusNgoiReport,
+  DoanhThuTuyenDuongReport,
   DoanhThuXeBusNgoiReport,
   LuongThangTaiXeReport,
+  ReportDateRangeParams,
 } from '@base/models/entities/report';
+import { formatCurrency, formatDate, formatNumber } from '@utils/format';
 
 const { Title, Text } = Typography;
 const { RangePicker } = DatePicker;
 
+type ReportTab = 'driver-salary' | 'vehicle-revenue' | 'route-revenue';
+
+const defaultRange: [Dayjs, Dayjs] = [dayjs().startOf('month'), dayjs().endOf('month')];
+
+const driverColumns: ColumnsType<LuongThangTaiXeReport> = [
+  { title: 'Mã tài xế', dataIndex: 'maTaiXe', key: 'maTaiXe', width: 120 },
+  { title: 'Tên tài xế', dataIndex: 'tenTaiXe', key: 'tenTaiXe' },
+  {
+    title: 'Tổng km',
+    dataIndex: 'tongKm',
+    key: 'tongKm',
+    align: 'right',
+    render: (value) => formatNumber(value),
+  },
+  {
+    title: 'Số tuyến',
+    dataIndex: 'soTuyen',
+    key: 'soTuyen',
+    align: 'center',
+    render: (value) => formatNumber(value),
+  },
+  {
+    title: 'Lương tháng',
+    dataIndex: 'luongThang',
+    key: 'luongThang',
+    align: 'right',
+    render: (value) => formatCurrency(value ?? 0),
+  },
+];
+
+const vehicleColumns: ColumnsType<DoanhThuXeBusNgoiReport> = [
+  { title: 'Mã xe', dataIndex: 'maXe', key: 'maXe', width: 120 },
+  { title: 'Tháng', dataIndex: 'thang', key: 'thang', width: 140 },
+  {
+    title: 'Doanh thu',
+    dataIndex: 'doanhThuThang',
+    key: 'doanhThuThang',
+    align: 'right',
+    render: (value) => formatCurrency(value ?? 0),
+  },
+];
+
+const routeColumns: ColumnsType<DoanhThuTuyenDuongReport> = [
+  { title: 'Mã tuyến', dataIndex: 'maTuyen', key: 'maTuyen', width: 120 },
+  { title: 'Tên tuyến', dataIndex: 'tenTuyen', key: 'tenTuyen' },
+  { title: 'Tháng', dataIndex: 'thang', key: 'thang', width: 140 },
+  {
+    title: 'Doanh thu',
+    dataIndex: 'doanhThuThang',
+    key: 'doanhThuThang',
+    align: 'right',
+    render: (value) => formatCurrency(value ?? 0),
+  },
+];
+
 const Reports: React.FC = () => {
-  const [activeTab, setActiveTab] = useState('chi-phi');
-  const [dateRange, setDateRange] = useState<[dayjs.Dayjs, dayjs.Dayjs] | null>(null);
+  const [activeTab, setActiveTab] = useState<ReportTab>('driver-salary');
+  const [dateRange, setDateRange] = useState<[Dayjs, Dayjs] | null>(defaultRange);
 
-  // Chi phí cơ bản
-  const { data: chiPhiData, isLoading: loadingChiPhi } = useChiPhiCoBan();
-
-  // Giá vé
-  const { data: giaVeData, isLoading: loadingGiaVe } = useGiaVeXeBusNgoi();
-
-  // Doanh thu xe
-  const doanhThuParams = {
-    tuNgay: dateRange?.[0]?.format('YYYY-MM-DD') || '',
-    denNgay: dateRange?.[1]?.format('YYYY-MM-DD') || '',
-  };
-  const { data: doanhThuData, isLoading: loadingDoanhThu } = useDoanhThuXeBusNgoi(
-    doanhThuParams,
-    activeTab === 'doanh-thu' && !!dateRange,
+  const params: ReportDateRangeParams = useMemo(
+    () => ({
+      tuNgay: dateRange?.[0]?.format('YYYY-MM-DD') ?? '',
+      denNgay: dateRange?.[1]?.format('YYYY-MM-DD') ?? '',
+    }),
+    [dateRange],
   );
 
-  // Lương tài xế
-  const { data: luongData, isLoading: loadingLuong } = useLuongThangTaiXe(
-    doanhThuParams,
-    activeTab === 'luong' && !!dateRange,
-  );
+  const {
+    data: driverSalaryData = [],
+    isLoading: isDriverSalaryLoading,
+    error: driverSalaryError,
+  } = useLuongThangTaiXe(params, activeTab === 'driver-salary');
+  const {
+    data: vehicleRevenueData = [],
+    isLoading: isVehicleRevenueLoading,
+    error: vehicleRevenueError,
+  } = useDoanhThuXeBusNgoi(params, activeTab === 'vehicle-revenue');
+  const {
+    data: routeRevenueData = [],
+    isLoading: isRouteRevenueLoading,
+    error: routeRevenueError,
+  } = useDoanhThuTuyenDuong(params, activeTab === 'route-revenue');
 
-  const chiPhiColumns: ColumnsType<ChiPhiCoBanReport> = [
-    { title: 'Mã chuyến', dataIndex: 'maChuyen', key: 'maChuyen', width: 110 },
-    { title: 'Tên chuyến', dataIndex: 'tenChuyen', key: 'tenChuyen' },
-    { title: 'Mã xe', dataIndex: 'maXe', key: 'maXe', width: 100 },
-    {
-      title: 'Khoảng cách (km)',
-      dataIndex: 'khoangCach',
-      key: 'khoangCach',
-      width: 140,
-      align: 'right',
-      render: (text) => formatNumber(text),
-    },
-    {
-      title: 'Chi phí cơ bản',
-      dataIndex: 'chiPhiCoBan',
-      key: 'chiPhiCoBan',
-      width: 150,
-      align: 'right',
-      render: (text) => (
-        <Text strong style={{ color: '#1677ff' }}>
-          {formatCurrency(text)}
-        </Text>
-      ),
-    },
-  ];
+  const currentConfig = useMemo(() => {
+    if (activeTab === 'driver-salary') {
+      const totalSalary = driverSalaryData.reduce((sum, item) => sum + (item.luongThang ?? 0), 0);
+      const totalKm = driverSalaryData.reduce((sum, item) => sum + (item.tongKm ?? 0), 0);
 
-  const giaVeColumns: ColumnsType<GiaVeXeBusNgoiReport> = [
-    { title: 'STT', dataIndex: 'stt', key: 'stt', width: 70 },
-    { title: 'Mã chuyến', dataIndex: 'maChuyen', key: 'maChuyen', width: 110 },
-    { title: 'Tên chuyến', dataIndex: 'tenChuyen', key: 'tenChuyen' },
-    { title: 'Vị trí', dataIndex: 'viTri', key: 'viTri', width: 100 },
-    {
-      title: 'Khoảng cách',
-      dataIndex: 'khoangCach',
-      key: 'khoangCach',
-      width: 120,
-      align: 'right',
-      render: (text) => `${formatNumber(text)} km`,
-    },
-    {
-      title: 'Giá vé',
-      dataIndex: 'giaVe',
-      key: 'giaVe',
-      width: 140,
-      align: 'right',
-      render: (text) => (
-        <Text strong style={{ color: '#52c41a' }}>
-          {formatCurrency(text)}
-        </Text>
-      ),
-    },
-  ];
+      return {
+        title: 'Báo cáo lương lái xe',
+        subtitle: 'Theo dõi lương, tổng km và số tuyến của đội tài xế theo kỳ.',
+        loading: isDriverSalaryLoading,
+        error: driverSalaryError,
+        data: driverSalaryData,
+        columns: driverColumns,
+        summary: [
+          { title: 'Tổng tài xế', value: driverSalaryData.length, formatter: formatNumber },
+          { title: 'Tổng km', value: totalKm, formatter: (value: number) => `${formatNumber(value)} km` },
+          { title: 'Tổng lương', value: totalSalary, formatter: formatCurrency },
+        ],
+      };
+    }
 
-  const doanhThuColumns: ColumnsType<DoanhThuXeBusNgoiReport> = [
-    { title: 'Mã xe', dataIndex: 'maXe', key: 'maXe', width: 100 },
-    { title: 'Tháng', dataIndex: 'thang', key: 'thang', width: 120 },
-    {
-      title: 'Doanh thu tháng',
-      dataIndex: 'doanhThuThang',
-      key: 'doanhThuThang',
-      align: 'right',
-      render: (text) => (
-        <Text strong style={{ color: '#52c41a' }}>
-          {formatCurrency(text)}
-        </Text>
-      ),
-    },
-  ];
+    if (activeTab === 'vehicle-revenue') {
+      const totalRevenue = vehicleRevenueData.reduce((sum, item) => sum + (item.doanhThuThang ?? 0), 0);
 
-  const luongColumns: ColumnsType<LuongThangTaiXeReport> = [
-    { title: 'Mã tài xế', dataIndex: 'maTaiXe', key: 'maTaiXe', width: 110 },
-    { title: 'Tên tài xế', dataIndex: 'tenTaiXe', key: 'tenTaiXe' },
-    {
-      title: 'Tổng KM',
-      dataIndex: 'tongKm',
-      key: 'tongKm',
-      width: 120,
-      align: 'right',
-      render: (text) => formatNumber(text),
-    },
-    {
-      title: 'Số tuyến',
-      dataIndex: 'soTuyen',
-      key: 'soTuyen',
-      width: 100,
-      align: 'center',
-    },
-    {
-      title: 'Lương tháng',
-      dataIndex: 'luongThang',
-      key: 'luongThang',
-      width: 150,
-      align: 'right',
-      render: (text) => (
-        <Text strong style={{ color: '#52c41a' }}>
-          {formatCurrency(text)}
-        </Text>
-      ),
-    },
-  ];
+      return {
+        title: 'Báo cáo doanh thu xe',
+        subtitle: 'Tổng hợp doanh thu theo từng xe trong khoảng thời gian đã chọn.',
+        loading: isVehicleRevenueLoading,
+        error: vehicleRevenueError,
+        data: vehicleRevenueData,
+        columns: vehicleColumns,
+        summary: [
+          { title: 'Bản ghi', value: vehicleRevenueData.length, formatter: formatNumber },
+          { title: 'Tổng doanh thu', value: totalRevenue, formatter: formatCurrency },
+          {
+            title: 'Xe có doanh thu',
+            value: new Set(vehicleRevenueData.map((item) => item.maXe)).size,
+            formatter: formatNumber,
+          },
+        ],
+      };
+    }
 
-  const tabItems = [
-    {
-      key: 'chi-phi',
-      label: (
-        <span>
-          <FileTextOutlined /> Chi phí cơ bản
-        </span>
-      ),
-      children: (
-        <div>
-          <Title level={4}>Chi phí cơ bản các chuyến xe</Title>
-          {loadingChiPhi ? (
-            <div style={{ textAlign: 'center', padding: 40 }}>
-              <Spin />
-            </div>
-          ) : (
-            <Table<ChiPhiCoBanReport>
-              columns={chiPhiColumns}
-              dataSource={chiPhiData || []}
-              rowKey="maChuyen"
-              pagination={{ pageSize: 10 }}
-            />
-          )}
-        </div>
-      ),
-    },
-    {
-      key: 'gia-ve',
-      label: (
-        <span>
-          <DollarOutlined /> Giá vé
-        </span>
-      ),
-      children: (
-        <div>
-          <Title level={4}>Bảng giá vé xe bus ngồi</Title>
-          {loadingGiaVe ? (
-            <div style={{ textAlign: 'center', padding: 40 }}>
-              <Spin />
-            </div>
-          ) : (
-            <Table<GiaVeXeBusNgoiReport>
-              columns={giaVeColumns}
-              dataSource={giaVeData || []}
-              rowKey="stt"
-              pagination={{ pageSize: 10 }}
-            />
-          )}
-        </div>
-      ),
-    },
-    {
-      key: 'doanh-thu',
-      label: (
-        <span>
-          <BarChartOutlined /> Doanh thu
-        </span>
-      ),
-      children: (
-        <div>
-          <Title level={4}>Doanh thu xe bus ngồi theo tháng</Title>
-          <Space style={{ marginBottom: 16 }}>
-            <RangePicker
-              value={dateRange}
-              onChange={(dates) => setDateRange(dates as [dayjs.Dayjs, dayjs.Dayjs] | null)}
-              placeholder={['Từ ngày', 'Đến ngày']}
-            />
-          </Space>
-          {!dateRange ? (
-            <Empty description="Chọn khoảng thời gian để xem báo cáo" />
-          ) : loadingDoanhThu ? (
-            <div style={{ textAlign: 'center', padding: 40 }}>
-              <Spin />
-            </div>
-          ) : (
-            <Table<DoanhThuXeBusNgoiReport>
-              columns={doanhThuColumns}
-              dataSource={doanhThuData || []}
-              rowKey={(record) => `${record.maXe}-${record.thang}`}
-              pagination={{ pageSize: 10 }}
-            />
-          )}
-        </div>
-      ),
-    },
-    {
-      key: 'luong',
-      label: (
-        <span>
-          <TeamOutlined /> Lương tài xế
-        </span>
-      ),
-      children: (
-        <div>
-          <Title level={4}>Bảng lương tháng tài xế</Title>
-          <Space style={{ marginBottom: 16 }}>
-            <RangePicker
-              value={dateRange}
-              onChange={(dates) => setDateRange(dates as [dayjs.Dayjs, dayjs.Dayjs] | null)}
-              placeholder={['Từ ngày', 'Đến ngày']}
-            />
-          </Space>
-          {!dateRange ? (
-            <Empty description="Chọn tháng để xem bảng lương" />
-          ) : loadingLuong ? (
-            <div style={{ textAlign: 'center', padding: 40 }}>
-              <Spin />
-            </div>
-          ) : (
-            <Table<LuongThangTaiXeReport>
-              columns={luongColumns}
-              dataSource={luongData || []}
-              rowKey="maTaiXe"
-              pagination={{ pageSize: 10 }}
-            />
-          )}
-        </div>
-      ),
-    },
-  ];
+    const totalRevenue = routeRevenueData.reduce((sum, item) => sum + (item.doanhThuThang ?? 0), 0);
+
+    return {
+      title: 'Báo cáo doanh thu tuyến',
+      subtitle: 'Tổng hợp doanh thu theo tuyến trong kỳ vận hành.',
+      loading: isRouteRevenueLoading,
+      error: routeRevenueError,
+      data: routeRevenueData,
+      columns: routeColumns,
+      summary: [
+        { title: 'Bản ghi', value: routeRevenueData.length, formatter: formatNumber },
+        { title: 'Tổng doanh thu', value: totalRevenue, formatter: formatCurrency },
+        {
+          title: 'Tuyến phát sinh',
+          value: new Set(routeRevenueData.map((item) => item.maTuyen)).size,
+          formatter: formatNumber,
+        },
+      ],
+    };
+  }, [
+    activeTab,
+    driverSalaryData,
+    driverSalaryError,
+    isDriverSalaryLoading,
+    isRouteRevenueLoading,
+    isVehicleRevenueLoading,
+    routeRevenueData,
+    routeRevenueError,
+    vehicleRevenueData,
+    vehicleRevenueError,
+  ]);
+
+  const hasDateRange = Boolean(dateRange?.[0] && dateRange?.[1]);
 
   return (
     <div style={{ padding: 24 }}>
-      {/* Page Header */}
       <div style={{ marginBottom: 24 }}>
-        <Title level={2} style={{ margin: 0 }}>
-          Báo cáo
+        <Title level={2} style={{ marginBottom: 8 }}>
+          Reports
         </Title>
-        <Text type="secondary">Xem các báo cáo thống kê hệ thống</Text>
+        <Text type="secondary">
+          Báo cáo vận hành production-lite cho khu vực quản trị nội bộ.
+        </Text>
       </div>
 
-      {/* Report Tabs */}
+      <Card style={{ marginBottom: 16 }}>
+        <Space direction="vertical" size={16} style={{ width: '100%' }}>
+          <Segmented<ReportTab>
+            block
+            value={activeTab}
+            onChange={(value) => setActiveTab(value)}
+            options={[
+              { label: 'Lương lái xe', value: 'driver-salary' },
+              { label: 'Doanh thu xe', value: 'vehicle-revenue' },
+              { label: 'Doanh thu tuyến', value: 'route-revenue' },
+            ]}
+          />
+          <Space wrap>
+            <RangePicker
+              value={dateRange}
+              onChange={(value) => setDateRange(value as [Dayjs, Dayjs] | null)}
+              format="DD/MM/YYYY"
+              allowClear={false}
+            />
+            <Text type="secondary">
+              Kỳ báo cáo: {formatDate(params.tuNgay)} - {formatDate(params.denNgay)}
+            </Text>
+          </Space>
+        </Space>
+      </Card>
+
       <Card>
-        <Tabs activeKey={activeTab} onChange={setActiveTab} items={tabItems} />
+        <Space direction="vertical" size={20} style={{ width: '100%' }}>
+          <div>
+            <Title level={4} style={{ marginBottom: 4 }}>
+              {currentConfig.title}
+            </Title>
+            <Text type="secondary">{currentConfig.subtitle}</Text>
+          </div>
+
+          <Row gutter={16}>
+            {currentConfig.summary.map((item) => (
+              <Col xs={24} md={8} key={item.title}>
+                <Card size="small">
+                  <Statistic title={item.title} value={item.formatter(item.value)} />
+                </Card>
+              </Col>
+            ))}
+          </Row>
+
+          {!hasDateRange ? (
+            <Empty description="Chọn khoảng thời gian để xem báo cáo." />
+          ) : currentConfig.error ? (
+            <Alert
+              type="error"
+              showIcon
+              message="Không tải được dữ liệu báo cáo"
+              description={(currentConfig.error as Error).message}
+            />
+          ) : currentConfig.loading ? (
+            <div style={{ textAlign: 'center', padding: 48 }}>
+              <Spin size="large" />
+            </div>
+          ) : currentConfig.data.length === 0 ? (
+            <Empty description="Không có dữ liệu trong khoảng thời gian đã chọn." />
+          ) : activeTab === 'driver-salary' ? (
+            <Table<LuongThangTaiXeReport>
+              columns={driverColumns}
+              dataSource={driverSalaryData}
+              rowKey="maTaiXe"
+              pagination={{ pageSize: 10, showSizeChanger: false }}
+              scroll={{ x: 960 }}
+            />
+          ) : activeTab === 'vehicle-revenue' ? (
+            <Table<DoanhThuXeBusNgoiReport>
+              columns={vehicleColumns}
+              dataSource={vehicleRevenueData}
+              rowKey={(record) => `${record.maXe}-${record.thang}`}
+              pagination={{ pageSize: 10, showSizeChanger: false }}
+              scroll={{ x: 960 }}
+            />
+          ) : (
+            <Table<DoanhThuTuyenDuongReport>
+              columns={routeColumns}
+              dataSource={routeRevenueData}
+              rowKey={(record) => `${record.maTuyen}-${record.thang}`}
+              pagination={{ pageSize: 10, showSizeChanger: false }}
+              scroll={{ x: 960 }}
+            />
+          )}
+        </Space>
       </Card>
     </div>
   );
