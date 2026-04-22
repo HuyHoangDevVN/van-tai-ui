@@ -35,18 +35,17 @@ const AdminLayout = () => {
 
   return (
     <AdminGuard>
-      <Layout style={{ minHeight: '100vh' }}>
+      <Layout className="admin-shell" style={{ minHeight: '100vh' }}>
       {/* Desktop/Tablet Sidebar */}
       {!isMobile && (
         <Sider
+          className="admin-sider"
           collapsible
           collapsed={collapsed}
           onCollapse={setCollapsed}
           width={220}
           collapsedWidth={80}
           style={{
-            background: '#001529',
-            boxShadow: '2px 0 8px rgba(0,0,0,0.05)',
             position: 'fixed',
             left: 0,
             top: 0,
@@ -75,15 +74,15 @@ const AdminLayout = () => {
       </Drawer>
 
       <Layout
+        className="admin-main-layout"
         style={{
           marginLeft: isMobile ? 0 : collapsed ? 80 : 220,
           transition: 'margin-left 0.2s',
         }}
       >
         <Header
+          className="admin-header"
           style={{
-            background: '#fff',
-            boxShadow: '0 2px 8px #f0f1f2',
             padding: isMobile ? '0 12px' : '0 24px',
             display: 'flex',
             alignItems: 'center',
@@ -115,17 +114,16 @@ const AdminLayout = () => {
           <HeaderAdmin />
         </Header>
         <Content
+          className="admin-content"
           style={{
             margin: isMobile ? '12px 8px' : isTablet ? '16px 12px' : '24px',
-            background: '#fff',
-            borderRadius: 8,
             minHeight: 360,
-            boxShadow: '0 1px 4px rgba(0,21,41,.08)',
-            padding: isMobile ? 12 : 16,
             overflow: 'auto',
           }}
         >
-          <Outlet />
+          <div className="admin-content-shell">
+            <Outlet />
+          </div>
         </Content>
       </Layout>
       </Layout>

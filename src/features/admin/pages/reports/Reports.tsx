@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import {
   Alert,
   Card,
@@ -14,6 +14,12 @@ import {
   Typography,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
+import {
+  BarChartOutlined,
+  CarOutlined,
+  DollarCircleOutlined,
+  TeamOutlined,
+} from '@ant-design/icons';
 import dayjs, { Dayjs } from 'dayjs';
 import {
   useDoanhThuTuyenDuong,
@@ -33,27 +39,42 @@ const { RangePicker } = DatePicker;
 
 type ReportTab = 'driver-salary' | 'vehicle-revenue' | 'route-revenue';
 
+type SummaryItem = {
+  title: string;
+  value: number;
+  formatter: (value: number) => string;
+};
+
+type CurrentReportConfig = {
+  title: string;
+  subtitle: string;
+  loading: boolean;
+  error: unknown;
+  data: Array<LuongThangTaiXeReport | DoanhThuXeBusNgoiReport | DoanhThuTuyenDuongReport>;
+  summary: SummaryItem[];
+};
+
 const defaultRange: [Dayjs, Dayjs] = [dayjs().startOf('month'), dayjs().endOf('month')];
 
 const driverColumns: ColumnsType<LuongThangTaiXeReport> = [
-  { title: 'Mã tài xế', dataIndex: 'maTaiXe', key: 'maTaiXe', width: 120 },
-  { title: 'Tên tài xế', dataIndex: 'tenTaiXe', key: 'tenTaiXe' },
+  { title: 'Ma tai xe', dataIndex: 'maTaiXe', key: 'maTaiXe', width: 120 },
+  { title: 'Ten tai xe', dataIndex: 'tenTaiXe', key: 'tenTaiXe' },
   {
-    title: 'Tổng km',
+    title: 'Tong km',
     dataIndex: 'tongKm',
     key: 'tongKm',
     align: 'right',
     render: (value) => formatNumber(value),
   },
   {
-    title: 'Số tuyến',
+    title: 'So tuyen',
     dataIndex: 'soTuyen',
     key: 'soTuyen',
     align: 'center',
     render: (value) => formatNumber(value),
   },
   {
-    title: 'Lương tháng',
+    title: 'Luong thang',
     dataIndex: 'luongThang',
     key: 'luongThang',
     align: 'right',
@@ -62,8 +83,8 @@ const driverColumns: ColumnsType<LuongThangTaiXeReport> = [
 ];
 
 const vehicleColumns: ColumnsType<DoanhThuXeBusNgoiReport> = [
-  { title: 'Mã xe', dataIndex: 'maXe', key: 'maXe', width: 120 },
-  { title: 'Tháng', dataIndex: 'thang', key: 'thang', width: 140 },
+  { title: 'Ma xe', dataIndex: 'maXe', key: 'maXe', width: 120 },
+  { title: 'Thang', dataIndex: 'thang', key: 'thang', width: 140 },
   {
     title: 'Doanh thu',
     dataIndex: 'doanhThuThang',
@@ -74,9 +95,9 @@ const vehicleColumns: ColumnsType<DoanhThuXeBusNgoiReport> = [
 ];
 
 const routeColumns: ColumnsType<DoanhThuTuyenDuongReport> = [
-  { title: 'Mã tuyến', dataIndex: 'maTuyen', key: 'maTuyen', width: 120 },
-  { title: 'Tên tuyến', dataIndex: 'tenTuyen', key: 'tenTuyen' },
-  { title: 'Tháng', dataIndex: 'thang', key: 'thang', width: 140 },
+  { title: 'Ma tuyen', dataIndex: 'maTuyen', key: 'maTuyen', width: 120 },
+  { title: 'Ten tuyen', dataIndex: 'tenTuyen', key: 'tenTuyen' },
+  { title: 'Thang', dataIndex: 'thang', key: 'thang', width: 140 },
   {
     title: 'Doanh thu',
     dataIndex: 'doanhThuThang',
@@ -85,6 +106,33 @@ const routeColumns: ColumnsType<DoanhThuTuyenDuongReport> = [
     render: (value) => formatCurrency(value ?? 0),
   },
 ];
+
+const reportTabOptions = [
+  { label: 'Luong lai xe', value: 'driver-salary' as const },
+  { label: 'Doanh thu xe', value: 'vehicle-revenue' as const },
+  { label: 'Doanh thu tuyen', value: 'route-revenue' as const },
+];
+
+const reportHeroMeta: Record<
+  ReportTab,
+  { eyebrow: string; icon: ReactNode; badgeLabel: string }
+> = {
+  'driver-salary': {
+    eyebrow: 'Van hanh doi ngu',
+    icon: <TeamOutlined />,
+    badgeLabel: 'Luong theo ky',
+  },
+  'vehicle-revenue': {
+    eyebrow: 'Hieu qua phuong tien',
+    icon: <CarOutlined />,
+    badgeLabel: 'Doanh thu theo xe',
+  },
+  'route-revenue': {
+    eyebrow: 'Doanh thu tuyen',
+    icon: <BarChartOutlined />,
+    badgeLabel: 'Tuyen dang phat sinh',
+  },
+};
 
 const Reports: React.FC = () => {
   const [activeTab, setActiveTab] = useState<ReportTab>('driver-salary');
@@ -114,22 +162,21 @@ const Reports: React.FC = () => {
     error: routeRevenueError,
   } = useDoanhThuTuyenDuong(params, activeTab === 'route-revenue');
 
-  const currentConfig = useMemo(() => {
+  const currentConfig: CurrentReportConfig = useMemo(() => {
     if (activeTab === 'driver-salary') {
       const totalSalary = driverSalaryData.reduce((sum, item) => sum + (item.luongThang ?? 0), 0);
       const totalKm = driverSalaryData.reduce((sum, item) => sum + (item.tongKm ?? 0), 0);
 
       return {
-        title: 'Báo cáo lương lái xe',
-        subtitle: 'Theo dõi lương, tổng km và số tuyến của đội tài xế theo kỳ.',
+        title: 'Bao cao luong lai xe',
+        subtitle: 'Theo doi tong km, so tuyen va tong luong cua doi lai xe trong ky da chon.',
         loading: isDriverSalaryLoading,
         error: driverSalaryError,
         data: driverSalaryData,
-        columns: driverColumns,
         summary: [
-          { title: 'Tổng tài xế', value: driverSalaryData.length, formatter: formatNumber },
-          { title: 'Tổng km', value: totalKm, formatter: (value: number) => `${formatNumber(value)} km` },
-          { title: 'Tổng lương', value: totalSalary, formatter: formatCurrency },
+          { title: 'Tong tai xe', value: driverSalaryData.length, formatter: formatNumber },
+          { title: 'Tong km', value: totalKm, formatter: (value: number) => `${formatNumber(value)} km` },
+          { title: 'Tong luong', value: totalSalary, formatter: formatCurrency },
         ],
       };
     }
@@ -138,17 +185,16 @@ const Reports: React.FC = () => {
       const totalRevenue = vehicleRevenueData.reduce((sum, item) => sum + (item.doanhThuThang ?? 0), 0);
 
       return {
-        title: 'Báo cáo doanh thu xe',
-        subtitle: 'Tổng hợp doanh thu theo từng xe trong khoảng thời gian đã chọn.',
+        title: 'Bao cao doanh thu xe',
+        subtitle: 'Tong hop doanh thu theo tung xe trong khoang thoi gian van hanh.',
         loading: isVehicleRevenueLoading,
         error: vehicleRevenueError,
         data: vehicleRevenueData,
-        columns: vehicleColumns,
         summary: [
-          { title: 'Bản ghi', value: vehicleRevenueData.length, formatter: formatNumber },
-          { title: 'Tổng doanh thu', value: totalRevenue, formatter: formatCurrency },
+          { title: 'Ban ghi', value: vehicleRevenueData.length, formatter: formatNumber },
+          { title: 'Tong doanh thu', value: totalRevenue, formatter: formatCurrency },
           {
-            title: 'Xe có doanh thu',
+            title: 'Xe co doanh thu',
             value: new Set(vehicleRevenueData.map((item) => item.maXe)).size,
             formatter: formatNumber,
           },
@@ -159,17 +205,16 @@ const Reports: React.FC = () => {
     const totalRevenue = routeRevenueData.reduce((sum, item) => sum + (item.doanhThuThang ?? 0), 0);
 
     return {
-      title: 'Báo cáo doanh thu tuyến',
-      subtitle: 'Tổng hợp doanh thu theo tuyến trong kỳ vận hành.',
+      title: 'Bao cao doanh thu tuyen',
+      subtitle: 'Tong hop doanh thu theo tung tuyen de doi soat hieu qua khai thac.',
       loading: isRouteRevenueLoading,
       error: routeRevenueError,
       data: routeRevenueData,
-      columns: routeColumns,
       summary: [
-        { title: 'Bản ghi', value: routeRevenueData.length, formatter: formatNumber },
-        { title: 'Tổng doanh thu', value: totalRevenue, formatter: formatCurrency },
+        { title: 'Ban ghi', value: routeRevenueData.length, formatter: formatNumber },
+        { title: 'Tong doanh thu', value: totalRevenue, formatter: formatCurrency },
         {
-          title: 'Tuyến phát sinh',
+          title: 'Tuyen phat sinh',
           value: new Set(routeRevenueData.map((item) => item.maTuyen)).size,
           formatter: formatNumber,
         },
@@ -189,103 +234,175 @@ const Reports: React.FC = () => {
   ]);
 
   const hasDateRange = Boolean(dateRange?.[0] && dateRange?.[1]);
+  const heroMeta = reportHeroMeta[activeTab];
+
+  const renderTable = () => {
+    if (!hasDateRange) {
+      return (
+        <div className="admin-data-state">
+          <Empty description="Chon khoang thoi gian de xem bao cao." />
+        </div>
+      );
+    }
+
+    if (currentConfig.error) {
+      return (
+        <Alert
+          type="error"
+          showIcon
+          message="Khong tai duoc du lieu bao cao"
+          description={(currentConfig.error as Error).message}
+        />
+      );
+    }
+
+    if (currentConfig.loading) {
+      return (
+        <div className="admin-data-state">
+          <Spin size="large" />
+        </div>
+      );
+    }
+
+    if (currentConfig.data.length === 0) {
+      return (
+        <div className="admin-data-state">
+          <Empty description="Khong co du lieu trong khoang thoi gian da chon." />
+        </div>
+      );
+    }
+
+    if (activeTab === 'driver-salary') {
+      return (
+        <Table<LuongThangTaiXeReport>
+          columns={driverColumns}
+          dataSource={driverSalaryData}
+          rowKey="maTaiXe"
+          pagination={{ pageSize: 10, showSizeChanger: false }}
+          scroll={{ x: 960 }}
+        />
+      );
+    }
+
+    if (activeTab === 'vehicle-revenue') {
+      return (
+        <Table<DoanhThuXeBusNgoiReport>
+          columns={vehicleColumns}
+          dataSource={vehicleRevenueData}
+          rowKey={(record) => `${record.maXe}-${record.thang}`}
+          pagination={{ pageSize: 10, showSizeChanger: false }}
+          scroll={{ x: 960 }}
+        />
+      );
+    }
+
+    return (
+      <Table<DoanhThuTuyenDuongReport>
+        columns={routeColumns}
+        dataSource={routeRevenueData}
+        rowKey={(record) => `${record.maTuyen}-${record.thang}`}
+        pagination={{ pageSize: 10, showSizeChanger: false }}
+        scroll={{ x: 960 }}
+      />
+    );
+  };
 
   return (
-    <div style={{ padding: 24 }}>
-      <div style={{ marginBottom: 24 }}>
-        <Title level={2} style={{ marginBottom: 8 }}>
-          Reports
-        </Title>
-        <Text type="secondary">
-          Báo cáo vận hành production-lite cho khu vực quản trị nội bộ.
-        </Text>
-      </div>
+    <div className="admin-page">
+      <section className="admin-page-hero">
+        <div className="admin-page-hero__meta">
+          <span className="admin-page-hero__eyebrow">
+            {heroMeta.icon}
+            {heroMeta.eyebrow}
+          </span>
+          <Title level={2} className="admin-page-hero__title">
+            Trung tam bao cao van hanh
+          </Title>
+          <Text type="secondary" className="admin-page-hero__description">
+            Mot man hinh duy nhat de theo doi luong lai xe va doanh thu theo xe, theo tuyen
+            trong ky. Giao dien uu tien doc nhanh, doi soat nhanh va khong chen them thong tin
+            trang tri.
+          </Text>
+        </div>
 
-      <Card style={{ marginBottom: 16 }}>
-        <Space direction="vertical" size={16} style={{ width: '100%' }}>
+        <div className="admin-page-hero__aside">
+          <span className="admin-page-hero__aside-label">Ky dang xem</span>
+          <p className="admin-page-hero__aside-value">
+            {formatDate(params.tuNgay)} - {formatDate(params.denNgay)}
+          </p>
+          <Text type="secondary">{heroMeta.badgeLabel}</Text>
+        </div>
+      </section>
+
+      <Card className="admin-surface-card admin-filter-card" bordered={false}>
+        <Space direction="vertical" size={18} style={{ width: '100%' }}>
+          <div className="admin-section-heading">
+            <div>
+              <Title level={4} className="admin-section-heading__title">
+                Bo loc bao cao
+              </Title>
+              <Text type="secondary" className="admin-section-heading__description">
+                Chuyen nhanh giua cac nhom bao cao va khoa ky doi soat theo ngay.
+              </Text>
+            </div>
+            <div className="admin-subtle-panel">
+              <Space size={8}>
+                <DollarCircleOutlined style={{ color: '#2563eb' }} />
+                <Text type="secondary">Du lieu lay truc tiep tu API backend hien tai.</Text>
+              </Space>
+            </div>
+          </div>
+
           <Segmented<ReportTab>
             block
             value={activeTab}
             onChange={(value) => setActiveTab(value)}
-            options={[
-              { label: 'Lương lái xe', value: 'driver-salary' },
-              { label: 'Doanh thu xe', value: 'vehicle-revenue' },
-              { label: 'Doanh thu tuyến', value: 'route-revenue' },
-            ]}
+            options={reportTabOptions}
           />
-          <Space wrap>
-            <RangePicker
-              value={dateRange}
-              onChange={(value) => setDateRange(value as [Dayjs, Dayjs] | null)}
-              format="DD/MM/YYYY"
-              allowClear={false}
-            />
+
+          <div className="admin-toolbar">
+            <div className="admin-toolbar__meta">
+              <RangePicker
+                value={dateRange}
+                onChange={(value) => setDateRange(value as [Dayjs, Dayjs] | null)}
+                format="DD/MM/YYYY"
+                allowClear={false}
+              />
+            </div>
             <Text type="secondary">
-              Kỳ báo cáo: {formatDate(params.tuNgay)} - {formatDate(params.denNgay)}
+              Ky bao cao: {formatDate(params.tuNgay)} - {formatDate(params.denNgay)}
             </Text>
-          </Space>
+          </div>
         </Space>
       </Card>
 
-      <Card>
-        <Space direction="vertical" size={20} style={{ width: '100%' }}>
-          <div>
-            <Title level={4} style={{ marginBottom: 4 }}>
-              {currentConfig.title}
-            </Title>
-            <Text type="secondary">{currentConfig.subtitle}</Text>
+      <Row gutter={[16, 16]}>
+        {currentConfig.summary.map((item) => (
+          <Col xs={24} md={8} key={item.title}>
+            <Card className="admin-surface-card admin-stat-card" bordered={false}>
+              <Statistic title={item.title} value={item.formatter(item.value)} />
+            </Card>
+          </Col>
+        ))}
+      </Row>
+
+      <Card className="admin-surface-card admin-table-card" bordered={false}>
+        <Space direction="vertical" size={18} style={{ width: '100%' }}>
+          <div className="admin-section-heading">
+            <div>
+              <Title level={4} className="admin-section-heading__title">
+                {currentConfig.title}
+              </Title>
+              <Text type="secondary" className="admin-section-heading__description">
+                {currentConfig.subtitle}
+              </Text>
+            </div>
+            <div className="admin-subtle-panel">
+              <Text type="secondary">So dong hien thi: {formatNumber(currentConfig.data.length)}</Text>
+            </div>
           </div>
 
-          <Row gutter={16}>
-            {currentConfig.summary.map((item) => (
-              <Col xs={24} md={8} key={item.title}>
-                <Card size="small">
-                  <Statistic title={item.title} value={item.formatter(item.value)} />
-                </Card>
-              </Col>
-            ))}
-          </Row>
-
-          {!hasDateRange ? (
-            <Empty description="Chọn khoảng thời gian để xem báo cáo." />
-          ) : currentConfig.error ? (
-            <Alert
-              type="error"
-              showIcon
-              message="Không tải được dữ liệu báo cáo"
-              description={(currentConfig.error as Error).message}
-            />
-          ) : currentConfig.loading ? (
-            <div style={{ textAlign: 'center', padding: 48 }}>
-              <Spin size="large" />
-            </div>
-          ) : currentConfig.data.length === 0 ? (
-            <Empty description="Không có dữ liệu trong khoảng thời gian đã chọn." />
-          ) : activeTab === 'driver-salary' ? (
-            <Table<LuongThangTaiXeReport>
-              columns={driverColumns}
-              dataSource={driverSalaryData}
-              rowKey="maTaiXe"
-              pagination={{ pageSize: 10, showSizeChanger: false }}
-              scroll={{ x: 960 }}
-            />
-          ) : activeTab === 'vehicle-revenue' ? (
-            <Table<DoanhThuXeBusNgoiReport>
-              columns={vehicleColumns}
-              dataSource={vehicleRevenueData}
-              rowKey={(record) => `${record.maXe}-${record.thang}`}
-              pagination={{ pageSize: 10, showSizeChanger: false }}
-              scroll={{ x: 960 }}
-            />
-          ) : (
-            <Table<DoanhThuTuyenDuongReport>
-              columns={routeColumns}
-              dataSource={routeRevenueData}
-              rowKey={(record) => `${record.maTuyen}-${record.thang}`}
-              pagination={{ pageSize: 10, showSizeChanger: false }}
-              scroll={{ x: 960 }}
-            />
-          )}
+          {renderTable()}
         </Space>
       </Card>
     </div>
